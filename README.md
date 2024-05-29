@@ -1,3 +1,1 @@
-Equilibrage de VM entre deux serveurs
-
-Jpp de devoir ouvrir 3 Git pour mettre ce README X)
+Using python to balance VMs between 2 servers in VMWare (CPU and Memory)
