@@ -11,7 +11,7 @@ password = getpass.getpass("password : ")
 VMlist = []
 
 # GET THE TOKEN
-# curl -k -X POST https://vcsa7.hsc.loc/rest/com/vmware/cis/session -u username:password
+# curl -k -X POST https://vcenter/rest/com/vmware/cis/session -u username:password
 def authVcenter():
 	response = requests.post('https://{}/rest/com/vmware/cis/session'.format(hostname), verify=False, auth=(username,password))
 	sessionID = False
@@ -29,7 +29,7 @@ def getAllVM(token):
 	headers = {
 		'vmware-api-session-id': token,
 	}
-	response = requests.get('https://{}/api//vcenter/vm'.format(hostname), verify=False, headers=headers)
+	response = requests.get('https://{}/api/vcenter/vm'.format(hostname), verify=False, headers=headers)
 	if response.ok:
 		VM = response.json()
 		print("------ JSON VMs ------")
@@ -42,3 +42,11 @@ print("------")
 print(token)
 print("------")
 getAllVM(token)
+
+# Test get cpu / memory
+
+# https://{}/api/vcenter/vm/hardware/cpu
+# https://{}/api/vcenter/vm/hardware/memory
+
+def test(token):
+	
