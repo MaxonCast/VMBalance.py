@@ -36,17 +36,28 @@ def getAllVM(token):
 		print(VM)
 	else:
 		print("Erreur GET")
+	return VM
 
 token = authVcenter()
 print("------")
 print(token)
 print("------")
+VMlist = [0]
 getAllVM(token)
 
-# Test get cpu / memory
-
-# https://{}/api/vcenter/vm/hardware/cpu
-# https://{}/api/vcenter/vm/hardware/memory
+# TEST
+print("------------")
 
 def test(token):
-	
+	headers = {
+		'vmware-api-session-id': token,
+	}
+	response = requests.get('https://{}/api/stats/metrics'.format(hostname), verify=False, headers=headers)
+	if response.ok:
+		t = response.json()
+		print("------ TEST ------")
+		print(t)
+	else:
+		print("Erreur TEST")
+
+test(token)
