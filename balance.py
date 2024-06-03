@@ -8,16 +8,18 @@ hostname = input("hostname : ")
 username = input("username : ")
 password = getpass.getpass("password : ")
 
+print("------------")
+
 VMlist = []
 
 # GET THE TOKEN
 # curl -k -X POST https://vcenter/rest/com/vmware/cis/session -u username:password
-def authVcenter():
-	response = requests.post('https://{}/rest/com/vmware/cis/session'.format(hostname), verify=False, auth=(username,password))
+def authVsphere():
+	response = requests.post('https://{}/api/session'.format(hostname), verify=False, auth=(username,password))
 	sessionID = False
 	if response.ok:
-		sessionID = response.json()['value']
-		print("------",sessionID,"------")
+		sessionID = response.json()
+		print("------ GOT SessionID ------")
 	else:
 		print("Erreur POST")
 	return sessionID
@@ -54,7 +56,7 @@ def getAllHosts(token):
 		print("Erreur GET Hosts")
 #	return host
 
-token = authVcenter()
+token = authVsphere()
 VMlist = [0]
 print("------")
 getAllVM(token)
@@ -63,9 +65,9 @@ getAllHosts(token)
 print("------")
 
 # TEST
-print("------------")
+print("------ TESTS ------")
 
-def test(token):
+def metrics(token):
 	headers = {
 		'vmware-api-session-id': token,
 	}
@@ -77,4 +79,4 @@ def test(token):
 	else:
 		print("Erreur TEST")
 
-#test(token)
+metrics(token)
