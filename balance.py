@@ -1,16 +1,12 @@
+from getpass import getpass
+
 import requests
-from requests.auth import HTTPBasicAuth
-import json
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
-import getpass
 
 hostname = input("hostname : ")
 username = input("username : ")
-password = getpass.getpass("password : ")
+password = getpass(prompt="password : ")
 
 print("------------")
-
-VMlist = []
 
 # GET THE TOKEN
 # curl -k -X POST https://vcenter/rest/com/vmware/cis/session -u username:password
@@ -57,7 +53,6 @@ def getAllHosts(token):
 #	return host
 
 token = authVsphere()
-VMlist = [0]
 print("------")
 getAllVM(token)
 print("------")
