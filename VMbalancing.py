@@ -10,15 +10,19 @@ from pyVmomi import vim, vmodl
 
 # Connecting to VCenter
 def authVSphere():
-    content = "vide"
+    content = "nothing"
+    # Trying to connect to VCenter
     service_instance = SmartConnect(host=getpass(prompt="Hostname : "), user=getpass(prompt="Username : "),
                                     pwd=getpass(prompt="Password : "))
+    # Connection verification
     if not service_instance:
         raise Exception("Failed to connect to vCenter Server")
+    # Trying to get VCenter content
     try:
         content = service_instance.RetrieveContent()
     except Exception as e:
         print("Error: {}".format(str(e)))
+    # Returning VCenter content or "nothing" if there is an error
     return content
 
 
@@ -27,33 +31,39 @@ def getVM(content):
     container = content.rootFolder
     obj_type = [vim.VirtualMachine]
     container_view = content.viewManager.CreateContainerView(container, obj_type, recursive=True)
-    vm_list = container_view.view
-    return vm_list
+    return container_view
 
 
 # Test getting properties
-def getProps(content):
+def getProps(content, container_view):
+    # List of properties
     vm_properties = ["name", "config.uuid"]
+    # Collector setup
     collector = content.propertyCollector
-    container = content.rootFolder
-    container_view = content.viewManager.CreateContainerView(container, [vim.VirtualMachine], recursive=True)
+    # obj_spec setup
     obj_spec = vmodl.query.PropertyCollector.ObjectSpec()
     obj_spec.obj = container_view
     obj_spec.skip = True
+    # traversal_spec setup
     traversal_spec = vmodl.query.PropertyCollector.TraversalSpec()
     traversal_spec.name = 'traverseEntities'
     traversal_spec.path = 'view'
     traversal_spec.skip = False
     traversal_spec.type = container_view.__class__
+    # obj_spec Set
     obj_spec.selectSet = [traversal_spec]
+    # property_spec setup
     property_spec = vmodl.query.PropertyCollector.PropertySpec()
     property_spec.type = vim.VirtualMachine
     property_spec.pathSet = vm_properties
+    # filter_spec setup
     filter_spec = vmodl.query.PropertyCollector.FilterSpec()
     filter_spec.objectSet = [obj_spec]
     filter_spec.propSet = [property_spec]
+    # props & data setup
     props = collector.RetrieveContents([filter_spec])
     data = []
+    #
     for obj in props:
         properties = {}
         for prop in obj.propSet:
@@ -96,10 +106,11 @@ def get_perf(content, vm):
 vcenter = authVSphere()
 
 # Getting list of all VMs
-VM_List = getVM(vcenter)
+VM_view = getVM(vcenter)
+VM_List = VM_view.view
 
 # Getting properties of all VMs
-prop_test = getProps(vcenter)
+prop_test = getProps(vcenter, VM_view)
 # Getting performance for 1 VM
 perf_test = get_perf(vcenter, VM_List[37])
 
