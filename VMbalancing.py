@@ -34,12 +34,12 @@ def getVM(content):
     return container_view
 
 
-# Test getting properties
+# Getting properties
 def getProps(content, container_view):
     # List of properties
     vm_properties = ["name", "config.uuid"]
     # Collector setup
-    collector = content.propertyCollector
+#    collector = content.propertyCollector
     # obj_spec setup
     obj_spec = vmodl.query.PropertyCollector.ObjectSpec()
     obj_spec.obj = container_view
@@ -61,7 +61,7 @@ def getProps(content, container_view):
     filter_spec.objectSet = [obj_spec]
     filter_spec.propSet = [property_spec]
     # props & data setup
-    props = collector.RetrieveContents([filter_spec])
+    props = content.propertyCollector.RetrieveContents([filter_spec])
     data = []
     #
     for obj in props:
@@ -73,33 +73,42 @@ def getProps(content, container_view):
     return data
 
 
-# Test getting performances
-def get_perf(content, vm):
-    perf_manager = content.perfManager
-    counter_info = {}
-    for counter in perf_manager.perfCounter:
-        full_name = counter.groupInfo.key + "." + \
-                    counter.nameInfo.key + "." + counter.rollupType
-        counter_info[full_name] = counter.key
-    counter_ids = [m.counterId for m in perf_manager.QueryAvailablePerfMetric(entity=vm)]
-    metric_ids = [vim.PerformanceManager.MetricId(
-        counterId=counter, instance="*") for counter in counter_ids]
-    spec = vim.PerformanceManager.QuerySpec(maxSample=1, entity=vm, metricId=metric_ids)
-    result_stats = perf_manager.QueryStats(querySpec=[spec])
-    output = ""
-    for _ in result_stats:
-        output += "name:        " + vm.summary.config.name + "\n"
-        for val in result_stats[0].value:
-            counterinfo_k_to_v = list(counter_info.keys())[
-                list(counter_info.values()).index(val.id.counterId)]
+# Getting performances
+def get_perf(content, vm_list):
+    counter_info = counter_filter(content)
+    for vm in vm_list:
+        counter_ids = []
+        for m in content.perfManager.QueryAvailablePerfMetric(entity=vm):
+            if m.counterId in list(counter_info.values()):
+                counter_ids.append(m.counterId)
+        metric_ids = [vim.PerformanceManager.MetricId(
+            counterId=counter, instance="*") for counter in counter_ids]
+        spec = vim.PerformanceManager.QuerySpec(maxSample=1, entity=vm, metricId=metric_ids)
+        result_stats = content.perfManager.QueryStats(querySpec=[spec])
+        output = ""
+        for _ in result_stats:
+            output += "name:        " + vm.summary.config.name + "\n"
+            for val in result_stats[0].value:
+                counterinfo_k_to_v = list(counter_info.keys())[list(counter_info.values()).index(val.id.counterId)]
+                if val.id.instance == '':
+                    output += "%s: %s\n" % (
+                        counterinfo_k_to_v, str(val.value[0]))
+                else:
+                    output += "%s (%s): %s\n" % (
+                        counterinfo_k_to_v, val.id.instance, str(val.value[0]))
+        print(output)
+        print("------------\n")
 
-            if val.id.instance == '':
-                output += "%s: %s\n" % (
-                    counterinfo_k_to_v, str(val.value[0]))
-            else:
-                output += "%s (%s): %s\n" % (
-                    counterinfo_k_to_v, val.id.instance, str(val.value[0]))
-        return output
+
+# Counter filter
+def counter_filter(content):
+    counter_info = {}
+    for counter in content.perfManager.perfCounter:
+        if (counter.groupInfo.key == "cpu" or counter.groupInfo.key == "mem") and counter.rollupType == "average":
+            if counter.nameInfo.key == "usage" or counter.nameInfo.key == "usagemhz" or counter.nameInfo.key == "ready":
+                full_name = counter.groupInfo.key + "." + counter.nameInfo.key + "." + counter.rollupType
+                counter_info[full_name] = counter.key
+    return counter_info
 
 
 # Authentication to VSphere
@@ -111,14 +120,11 @@ VM_List = VM_view.view
 
 # Getting properties of all VMs
 prop_test = getProps(vcenter, VM_view)
-# Getting performance for 1 VM
-perf_test = get_perf(vcenter, VM_List[37])
 
-# Printing the name, props and perf of 1 VM
-print("VM : ", VM_List[37])
-print(prop_test[37])
+# Printing the perf of all VMs
 print("------ RESULTS ------")
-print(perf_test)
+get_perf(vcenter, VM_List)
+#print(counter_filter(vcenter))
 
 
 # Disconnect(service_instance)
