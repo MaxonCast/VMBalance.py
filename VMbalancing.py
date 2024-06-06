@@ -10,38 +10,33 @@ from pyVmomi import vim, vmodl
 
 # Connecting to VCenter
 def authVSphere():
-    result = "vide"
+    content = "vide"
     service_instance = SmartConnect(host=getpass(prompt="Hostname : "), user=getpass(prompt="Username : "),
                                     pwd=getpass(prompt="Password : "))
     if not service_instance:
         raise Exception("Failed to connect to vCenter Server")
-
     try:
-        result = service_instance.RetrieveContent()
+        content = service_instance.RetrieveContent()
     except Exception as e:
         print("Error: {}".format(str(e)))
-    return result
-
-
-content = authVSphere()
+    return content
 
 
 # Getting VM list
-def getVM(vcenter):
-    container = vcenter.rootFolder
+def getVM(content):
+    container = content.rootFolder
     obj_type = [vim.VirtualMachine]
-    container_view = vcenter.viewManager.CreateContainerView(container, obj_type, recursive=True)
-    children = container_view.view
-    return children
+    container_view = content.viewManager.CreateContainerView(container, obj_type, recursive=True)
+    vm_list = container_view.view
+    return vm_list
 
 
 # Test getting properties
-def getProps(vcenter):
-    vm_properties = ["name", "config.uuid", "guest.guestState",
-                     "config.version"]
-    collector = vcenter.propertyCollector
-    container = vcenter.rootFolder
-    container_view = vcenter.viewManager.CreateContainerView(container, [vim.VirtualMachine], recursive=True)
+def getProps(content):
+    vm_properties = ["name", "config.uuid"]
+    collector = content.propertyCollector
+    container = content.rootFolder
+    container_view = content.viewManager.CreateContainerView(container, [vim.VirtualMachine], recursive=True)
     obj_spec = vmodl.query.PropertyCollector.ObjectSpec()
     obj_spec.obj = container_view
     obj_spec.skip = True
@@ -69,8 +64,8 @@ def getProps(vcenter):
 
 
 # Test getting performances
-def get_perf(vcenter, vm):
-    perf_manager = vcenter.perfManager
+def get_perf(content, vm):
+    perf_manager = content.perfManager
     counter_info = {}
     for counter in perf_manager.perfCounter:
         full_name = counter.groupInfo.key + "." + \
@@ -79,8 +74,7 @@ def get_perf(vcenter, vm):
     counter_ids = [m.counterId for m in perf_manager.QueryAvailablePerfMetric(entity=vm)]
     metric_ids = [vim.PerformanceManager.MetricId(
         counterId=counter, instance="*") for counter in counter_ids]
-    spec = vim.PerformanceManager.QuerySpec(maxSample=1, entity=vm,
-                                                metricId=metric_ids)
+    spec = vim.PerformanceManager.QuerySpec(maxSample=1, entity=vm, metricId=metric_ids)
     result_stats = perf_manager.QueryStats(querySpec=[spec])
     output = ""
     for _ in result_stats:
@@ -98,12 +92,22 @@ def get_perf(vcenter, vm):
         return output
 
 
-VM_List = getVM(content)
-# Disconnect(service_instance)
+# Authentication to VSphere
+vcenter = authVSphere()
 
-prop_test = getProps(content)
-perf_test = get_perf(content, VM_List[6])
-print("VM : ", VM_List[6])
-print(prop_test[6])
+# Getting list of all VMs
+VM_List = getVM(vcenter)
+
+# Getting properties of all VMs
+prop_test = getProps(vcenter)
+# Getting performance for 1 VM
+perf_test = get_perf(vcenter, VM_List[37])
+
+# Printing the name, props and perf of 1 VM
+print("VM : ", VM_List[37])
+print(prop_test[37])
 print("------ RESULTS ------")
 print(perf_test)
+
+
+# Disconnect(service_instance)
