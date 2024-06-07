@@ -79,8 +79,10 @@ def get_perf(content, vm_list):
         counterId=counter, instance="*") for counter in counter_ids]
     data = []
     for vm in vm_list:
+        print("Calculating...")
         spec = vim.PerformanceManager.QuerySpec(maxSample=1, entity=vm, metricId=metric_ids)
         result_stats = content.perfManager.QueryStats(querySpec=[spec])
+        print("Done !\n")
         output = ""
         vm_data = [vm.summary.config.name]
         value_data = []
@@ -92,8 +94,9 @@ def get_perf(content, vm_list):
                 output += "%s: %s\n" % (counterinfo_k_to_v, str(val.value[0]))
             vm_data.append(value_data)
         data.append(vm_data)
-        print(output)
-        print("------------\n")
+        # print(output)
+        print("VM", len(data), "saved !")
+        print("\n------------\n")
     return data
 
 
@@ -123,6 +126,7 @@ prop_test = getProps(vcenter, VM_view)
 # Printing the perf of all VMs
 print("------ RESULTS ------\n")
 perf_data = get_perf(vcenter, VM_List)
+print("------ SAVE ------\n")
 for i in perf_data:
     print(i)
 
