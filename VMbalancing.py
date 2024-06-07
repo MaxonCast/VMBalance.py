@@ -71,28 +71,30 @@ def getProps(content, container_view):
 # Getting performances
 def get_perf(content, vm_list):
     counter_info = counter_filter(content)
+    counter_ids = []
+    for m in content.perfManager.QueryAvailablePerfMetric(entity=vm_list[0]):
+        if m.counterId in list(counter_info.values()):
+            counter_ids.append(m.counterId)
+    metric_ids = [vim.PerformanceManager.MetricId(
+        counterId=counter, instance="*") for counter in counter_ids]
+    data = []
     for vm in vm_list:
-        counter_ids = []
-        for m in content.perfManager.QueryAvailablePerfMetric(entity=vm):
-            if m.counterId in list(counter_info.values()):
-                counter_ids.append(m.counterId)
-        metric_ids = [vim.PerformanceManager.MetricId(
-            counterId=counter, instance="*") for counter in counter_ids]
         spec = vim.PerformanceManager.QuerySpec(maxSample=1, entity=vm, metricId=metric_ids)
         result_stats = content.perfManager.QueryStats(querySpec=[spec])
         output = ""
+        vm_data = [vm.summary.config.name]
+        value_data = []
         for _ in result_stats:
             output += "name:        " + vm.summary.config.name + "\n"
             for val in result_stats[0].value:
+                value_data.append(val.value[0])
                 counterinfo_k_to_v = list(counter_info.keys())[list(counter_info.values()).index(val.id.counterId)]
-                if val.id.instance == '':
-                    output += "%s: %s\n" % (
-                        counterinfo_k_to_v, str(val.value[0]))
-                else:
-                    output += "%s (%s): %s\n" % (
-                        counterinfo_k_to_v, val.id.instance, str(val.value[0]))
+                output += "%s: %s\n" % (counterinfo_k_to_v, str(val.value[0]))
+            vm_data.append(value_data)
+        data.append(vm_data)
         print(output)
         print("------------\n")
+    return data
 
 
 # Counter filter
@@ -100,7 +102,8 @@ def counter_filter(content):
     counter_info = {}
     for counter in content.perfManager.perfCounter:
         if (counter.groupInfo.key == "cpu" or counter.groupInfo.key == "mem") and counter.rollupType == "average":
-            if counter.nameInfo.key == "usage" or counter.nameInfo.key == "usagemhz" or counter.nameInfo.key == "ready":
+            if counter.nameInfo.key == "usagemhz" or (counter.nameInfo.key == "usage" and
+                                                      counter.groupInfo.key == "mem"):
                 full_name = counter.groupInfo.key + "." + counter.nameInfo.key + "." + counter.rollupType
                 counter_info[full_name] = counter.key
     return counter_info
@@ -119,7 +122,9 @@ prop_test = getProps(vcenter, VM_view)
 
 # Printing the perf of all VMs
 print("------ RESULTS ------\n")
-get_perf(vcenter, VM_List)
+perf_data = get_perf(vcenter, VM_List)
+for i in perf_data:
+    print(i)
 
 
 # Disconnect(service_instance)
