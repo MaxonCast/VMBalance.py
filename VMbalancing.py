@@ -3,11 +3,6 @@ from pyVim.connect import SmartConnect  # , Disconnect
 from pyVmomi import vim, vmodl
 
 
-# hostname = getpass(prompt="Hostname : ")
-# username = getpass(prompt="Username : ")
-# password = getpass(prompt="Password : ")
-
-
 # Connecting to VCenter
 def authVSphere():
     content = "nothing"
@@ -113,6 +108,7 @@ def counter_filter(content):
 
 # Authentication to VSphere
 vcenter = authVSphere()
+print("\n")
 
 # Getting list of all VMs
 VM_view = getVM(vcenter)
@@ -122,9 +118,8 @@ VM_List = VM_view.view
 prop_test = getProps(vcenter, VM_view)
 
 # Printing the perf of all VMs
-print("------ RESULTS ------")
+print("------ RESULTS ------\n")
 get_perf(vcenter, VM_List)
-#print(counter_filter(vcenter))
 
 
 # Disconnect(service_instance)
