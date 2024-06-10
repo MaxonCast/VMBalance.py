@@ -106,14 +106,13 @@ def counter_filter(content):
     counter_info = {}
     for counter in content.perfManager.perfCounter:
         if (counter.groupInfo.key == "cpu" or counter.groupInfo.key == "mem") and counter.rollupType == "average":
-            if counter.nameInfo.key == "usagemhz" or (counter.nameInfo.key == "usage" and
-                                                      counter.groupInfo.key == "mem"):
+            if counter.nameInfo.key == "consumed" or counter.nameInfo.key == "usagemhz":
                 full_name = counter.groupInfo.key + "." + counter.nameInfo.key + "." + counter.rollupType
                 counter_info[full_name] = counter.key
     return counter_info
 
 
-# Sorting the VM List from highest CPU usage to lowest
+# Sorting the VM List by CPU usage (highest to lowest)
 def sort_by_cpu(data):
     for temp1 in range(len(data)-1):
         for temp2 in range(temp1+1, len(data)):
@@ -151,7 +150,7 @@ def distribution_vm_cpu(vm_list):
             list1.append(vm)
             cpu1 = vm[1][0]
             mem1 = vm[1][1]
-        # Equilibrate CPU in priority
+        # Equilibrate CPU
         elif cpu1 > cpu2:
             list2.append(vm)
             cpu2 = cpu2 + vm[1][0]
@@ -238,14 +237,11 @@ VM_List = vm_power_filter(VM_List)
 # Getting properties of powered ON VMs
 prop_test = getProps(vcenter, VM_view)
 
-# Printing the perf of all VMs
-print("------ RESULTS ------\n")
+# Getting the perf of all VMs
 perf_data = get_perf(vcenter, VM_List)
 
 # Sorting and printing the result
 vm_list_cpu = sort_by_cpu(perf_data)
-print("------ SORTED BY CPU USAGE ------\n")
-print_list(vm_list_cpu)
 
 # Distributing VMs in 2 lists (hoping it will be balanced)
 vm_lists_cpu = distribution_vm_cpu(vm_list_cpu)
@@ -255,7 +251,7 @@ print_list(vm_lists_cpu[0])
 print("List 2 :")
 print_list(vm_lists_cpu[1])
 print("Summary :")
-print("CPU / Memory list 1 :", vm_lists_cpu[2], "   /   CPU / Memory list 2 :", vm_lists_cpu[3])
+print("CPU / Memory list 1 :", vm_lists_cpu[2], "(MHz/KB)   /   CPU / Memory list 2 :", vm_lists_cpu[3], "(MHz/KB)")
 
 # Next step : Get hosts
 
