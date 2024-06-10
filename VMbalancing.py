@@ -1,3 +1,4 @@
+import datetime
 from getpass import getpass
 from pyVim.connect import SmartConnect  # , Disconnect
 from pyVmomi import vim, vmodl
@@ -67,32 +68,34 @@ def getProps(content, container_view):
 
 
 # Getting performances
-def get_perf(content, vm_list):
+def get_perf(content, obj_list):
     counter_info = counter_filter(content)
-    counter_ids = []
-    for m in content.perfManager.QueryAvailablePerfMetric(entity=vm_list[0]):
-        if m.counterId in list(counter_info.values()):
-            counter_ids.append(m.counterId)
-    metric_ids = [vim.PerformanceManager.MetricId(
-        counterId=counter, instance="*") for counter in counter_ids]
     data = []
-    for vm in vm_list:
+    for obj in obj_list:
         print("Calculating...")
-        spec = vim.PerformanceManager.QuerySpec(maxSample=1, entity=vm, metricId=metric_ids)
+        counter_ids = []
+        for m in content.perfManager.QueryAvailablePerfMetric(entity=obj):
+            if m.counterId in list(counter_info.values()):
+                counter_ids.append(m.counterId)
+        metric_ids = [vim.PerformanceManager.MetricId(counterId=counter, instance="*") for counter in counter_ids]
+        start_time = datetime.datetime.now() - datetime.timedelta(hours=1)
+        end_time = datetime.datetime.now()
+        spec = vim.PerformanceManager.QuerySpec(maxSample=1, entity=obj, metricId=metric_ids, startTime=start_time,
+                                                endTime=end_time)
         result_stats = content.perfManager.QueryStats(querySpec=[spec])
         print("Done !\n")
         output = ""
-        vm_data = [vm.summary.config.name]
+        vm_data = [obj.summary.config.name]
         value_data = []
         for _ in result_stats:
-            output += "name:        " + vm.summary.config.name + "\n"
+            output += "name:        " + obj.summary.config.name + "\n"
             for val in result_stats[0].value:
                 value_data.append(val.value[0])
                 counterinfo_k_to_v = list(counter_info.keys())[list(counter_info.values()).index(val.id.counterId)]
                 output += "%s: %s\n" % (counterinfo_k_to_v, str(val.value[0]))
             vm_data.append(value_data)
         data.append(vm_data)
-        # print(output)
+        print(output)
         print("VM", len(data), "saved !")
         print("\n------------\n")
     return data
@@ -114,12 +117,21 @@ def counter_filter(content):
 def sort_by_cpu(data):
     for temp1 in range(len(data)-1):
         for temp2 in range(temp1+1, len(data)):
-            if data[temp1][1][0] > data[temp2][1][0]:
-                temp = data[temp1]
-                data[temp1] = data[temp2]
-                data[temp2] = temp
-        print_list(data)
+            if len(data[temp1]) > 1 and len(data[temp2]) > 1:
+                if data[temp1][1][0] > data[temp2][1][0]:
+                    temp = data[temp1]
+                    data[temp1] = data[temp2]
+                    data[temp2] = temp
     return data
+
+
+# Filter powered OFF VMs
+def vm_power_filter(vm_list):
+    new_list = []
+    for vm in vm_list:
+        if vm.summary.runtime.powerState == "poweredOn":
+            new_list.append(vm)
+    return new_list
 
 
 # Print list line by line
@@ -135,17 +147,15 @@ print("\n")
 # Getting list of all VMs
 VM_view = getVM(vcenter)
 VM_List = VM_view.view
+# Filtering the powered ON VMs (deleting powered OFF VMs of list)
+VM_List = vm_power_filter(VM_List)
 
-# Getting properties of all VMs
+# Getting properties of powered ON VMs
 prop_test = getProps(vcenter, VM_view)
 
 # Printing the perf of all VMs
 print("------ RESULTS ------\n")
 perf_data = get_perf(vcenter, VM_List)
-"""
-print("------ SAVE ------\n")
-print_list(perf_data)
-"""
 
 # Sorting and printing the result
 vm_list_cpu = sort_by_cpu(perf_data)
