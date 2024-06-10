@@ -113,7 +113,7 @@ def counter_filter(content):
     return counter_info
 
 
-# Sorting the VM List from lowest CPU usage to highest
+# Sorting the VM List from highest CPU usage to lowest
 def sort_by_cpu(data):
     for temp1 in range(len(data)-1):
         for temp2 in range(temp1+1, len(data)):
@@ -122,7 +122,10 @@ def sort_by_cpu(data):
                     temp = data[temp1]
                     data[temp1] = data[temp2]
                     data[temp2] = temp
-    return data
+    new_data = []
+    for i in data:
+        new_data = [i] + new_data
+    return new_data
 
 
 # Filter powered OFF VMs
@@ -132,6 +135,88 @@ def vm_power_filter(vm_list):
         if vm.summary.runtime.powerState == "poweredOn":
             new_list.append(vm)
     return new_list
+
+
+# Distributing ordered VM (cpu) into 2 Lists (trying to balance the 2)
+def distribution_vm_cpu(vm_list):
+    balanced_list = []
+    list1, list2 = [], []
+    sum1, sum2 = [], []
+    cpu1, cpu2 = 0, 0
+    mem1, mem2 = 0, 0
+    for index in range(len(vm_list)):
+        vm = vm_list[index]
+        # Initiation
+        if len(list1) == 0:
+            list1.append(vm)
+            cpu1 = vm[1][0]
+            mem1 = vm[1][1]
+        # Equilibrate CPU in priority
+        elif cpu1 > cpu2:
+            list2.append(vm)
+            cpu2 = cpu2 + vm[1][0]
+            mem2 = mem2 + vm[1][1]
+        else:
+            list1.append(vm)
+            cpu1 = cpu1 + vm[1][0]
+            mem1 = mem1 + vm[1][1]
+    sum1.append(cpu1)
+    sum1.append(mem1)
+    sum2.append(cpu2)
+    sum2.append(mem2)
+    balanced_list.append(list1)
+    balanced_list.append(list2)
+    balanced_list.append(sum1)
+    balanced_list.append(sum2)
+    return balanced_list
+
+
+""" TESTS
+# Distributing ordered VM (cpu / memory less) into 2 Lists (trying to balance the 2)
+def distribution_vm_cpu_memory(vm_list):
+    balanced_list = []
+    list1, list2 = [], []
+    sum1, sum2 = [], []
+    cpu1, cpu2 = 0, 0
+    mem1, mem2 = 0, 0
+    skip = False
+    for index in range(len(vm_list)):
+        if not skip:
+            vm = vm_list[index]
+            # Initiation
+            if len(list1) == 0:
+                list1.append(vm)
+                cpu1 = vm[1][0]
+                mem1 = vm[1][1]
+            elif cpu1 == cpu2:
+                # Equilibrate Memory when possible
+                if mem1 > mem2:
+                    list2.append(vm)
+                    cpu2 = cpu2 + vm[1][0]
+                    mem2 = mem2 + vm[1][1]
+                else:
+                    list1.append(vm)
+                    cpu1 = cpu1 + vm[1][0]
+                    mem1 = mem1 + vm[1][1]
+            # Equilibrate CPU in priority
+            elif cpu1 > cpu2:
+                list2.append(vm)
+                cpu2 = cpu2 + vm[1][0]
+                mem2 = mem2 + vm[1][1]
+            else:
+                list1.append(vm)
+                cpu1 = cpu1 + vm[1][0]
+                mem1 = mem1 + vm[1][1]
+    sum1.append(cpu1)
+    sum1.append(mem1)
+    sum2.append(cpu2)
+    sum2.append(mem2)
+    balanced_list.append(list1)
+    balanced_list.append(list2)
+    balanced_list.append(sum1)
+    balanced_list.append(sum2)
+    return balanced_list
+"""
 
 
 # Print list line by line
@@ -161,6 +246,16 @@ perf_data = get_perf(vcenter, VM_List)
 vm_list_cpu = sort_by_cpu(perf_data)
 print("------ SORTED BY CPU USAGE ------\n")
 print_list(vm_list_cpu)
+
+# Distributing VMs in 2 lists (hoping it will be balanced)
+vm_lists_cpu = distribution_vm_cpu(vm_list_cpu)
+print("------ DISTRIBUTION BY CPU USAGE ------\n")
+print("List 1 :")
+print_list(vm_lists_cpu[0])
+print("List 2 :")
+print_list(vm_lists_cpu[1])
+print("Summary :")
+print("CPU / Memory list 1 :", vm_lists_cpu[2], "   /   CPU / Memory list 2 :", vm_lists_cpu[3])
 
 
 # Disconnect(service_instance)
