@@ -33,8 +33,6 @@ def getVM(content):
 def getProps(content, container_view):
     # List of properties
     vm_properties = ["name", "config.uuid"]
-    # Collector setup
-#    collector = content.propertyCollector
     # obj_spec setup
     obj_spec = vmodl.query.PropertyCollector.ObjectSpec()
     obj_spec.obj = container_view
@@ -112,6 +110,24 @@ def counter_filter(content):
     return counter_info
 
 
+# Sorting the VM List from lowest CPU usage to highest
+def sort_by_cpu(data):
+    for temp1 in range(len(data)-1):
+        for temp2 in range(temp1+1, len(data)):
+            if data[temp1][1][0] > data[temp2][1][0]:
+                temp = data[temp1]
+                data[temp1] = data[temp2]
+                data[temp2] = temp
+        print_list(data)
+    return data
+
+
+# Print list line by line
+def print_list(plist):
+    for p in plist:
+        print(p)
+
+
 # Authentication to VSphere
 vcenter = authVSphere()
 print("\n")
@@ -126,9 +142,15 @@ prop_test = getProps(vcenter, VM_view)
 # Printing the perf of all VMs
 print("------ RESULTS ------\n")
 perf_data = get_perf(vcenter, VM_List)
+"""
 print("------ SAVE ------\n")
-for i in perf_data:
-    print(i)
+print_list(perf_data)
+"""
+
+# Sorting and printing the result
+vm_list_cpu = sort_by_cpu(perf_data)
+print("------ SORTED BY CPU USAGE ------\n")
+print_list(vm_list_cpu)
 
 
 # Disconnect(service_instance)
