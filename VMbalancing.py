@@ -257,5 +257,7 @@ print_list(vm_lists_cpu[1])
 print("Summary :")
 print("CPU / Memory list 1 :", vm_lists_cpu[2], "   /   CPU / Memory list 2 :", vm_lists_cpu[3])
 
+# Next step : Distribute hosts
+
 
 # Disconnect(service_instance)
