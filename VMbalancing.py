@@ -79,8 +79,8 @@ def getProps(content, container_view):
 def get_perf(content, obj_list):
     counter_info = counter_filter(content)
     data = []
+    print("Calculating...")
     for obj in obj_list:
-        print("Calculating...")
         counter_ids = []
         for m in content.perfManager.QueryAvailablePerfMetric(entity=obj):
             if m.counterId in list(counter_info.values()):
@@ -91,7 +91,6 @@ def get_perf(content, obj_list):
         spec = vim.PerformanceManager.QuerySpec(maxSample=1, entity=obj, metricId=metric_ids, startTime=start_time,
                                                 endTime=end_time)
         result_stats = content.perfManager.QueryStats(querySpec=[spec])
-        print("Done !\n")
         output = ""
         vm_data = [obj.summary.config.name]
         value_data = []
@@ -103,9 +102,8 @@ def get_perf(content, obj_list):
                 output += "%s: %s\n" % (counterinfo_k_to_v, str(val.value[0]))
             vm_data.append(value_data)
         data.append(vm_data)
-        print(output)
-        print("VM", len(data), "saved !")
-        print("\n------------\n")
+        # print(output, "\nVM", len(data), "saved !\n------------\n")
+    print("Done !\n   ", len(data), "VM saved\n")
     return data
 
 
@@ -160,6 +158,40 @@ def distribution_vm_cpu(vm_list):
             mem1 = vm[1][1]
         # Equilibrate CPU
         elif cpu1 > cpu2:
+            list2.append(vm)
+            cpu2 = cpu2 + vm[1][0]
+            mem2 = mem2 + vm[1][1]
+        else:
+            list1.append(vm)
+            cpu1 = cpu1 + vm[1][0]
+            mem1 = mem1 + vm[1][1]
+    sum1.append(cpu1)
+    sum1.append(mem1)
+    sum2.append(cpu2)
+    sum2.append(mem2)
+    balanced_list.append(list1)
+    balanced_list.append(list2)
+    balanced_list.append(sum1)
+    balanced_list.append(sum2)
+    return balanced_list
+
+
+# Distributing ordered VM (cpu) into 2 Lists (trying to balance the 2)
+def distribution_vm_mem(vm_list):
+    balanced_list = []
+    list1, list2 = [], []
+    sum1, sum2 = [], []
+    cpu1, cpu2 = 0, 0
+    mem1, mem2 = 0, 0
+    for index in range(len(vm_list)):
+        vm = vm_list[index]
+        # Initiation
+        if len(list1) == 0:
+            list1.append(vm)
+            cpu1 = vm[1][0]
+            mem1 = vm[1][1]
+        # Equilibrate CPU
+        elif mem1 > mem2:
             list2.append(vm)
             cpu2 = cpu2 + vm[1][0]
             mem2 = mem2 + vm[1][1]
@@ -290,16 +322,25 @@ def main_vm(content):
         # Sorting and printing the result
         vm_list_cpu = sort_by_cpu(perf_data)
 
-        # Distributing VMs in 2 lists (hoping it will be balanced)
-        vm_lists = distribution_vm_cpu(vm_list_cpu)
+        # Distributing VMs in 2 lists (cpu balance)
+        vm_lists1 = distribution_vm_cpu(vm_list_cpu)
         print("------ DISTRIBUTION BY CPU USAGE ------\n\nList 1 :")
-        print_list(vm_lists[0])
+        print_list(vm_lists1[0])
         print("\nList 2 :")
-        print_list(vm_lists[1])
-        print("\nSummary :\nCPU / Memory list 1 :", vm_lists[2], "(MHz/KB)\nCPU / Memory list 2 :", vm_lists[3],
+        print_list(vm_lists1[1])
+        print("\nSummary :\nCPU / Memory list 1 :", vm_lists1[2], "(MHz/KB)\nCPU / Memory list 2 :", vm_lists1[3],
               "(MHz/KB)")
 
-        return vm_lists
+        # Distributing VMs in 2 lists (memory balance)
+        vm_lists2 = distribution_vm_mem(vm_list_cpu)
+        print("------ DISTRIBUTION BY MEMORY CONSUMED ------\n\nList 1 :")
+        print_list(vm_lists2[0])
+        print("\nList 2 :")
+        print_list(vm_lists2[1])
+        print("\nSummary :\nCPU / Memory list 1 :", vm_lists2[2], "(MHz/KB)\nCPU / Memory list 2 :", vm_lists2[3],
+              "(MHz/KB)")
+
+        return vm_lists1
 
     else:
 
