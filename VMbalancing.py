@@ -30,6 +30,14 @@ def getVM(content):
     return container_view
 
 
+# Getting Hosts list
+def get_host(content):
+    container = content.rootFolder
+    obj_type = [vim.HostSystem]
+    container_view = content.viewManager.CreateContainerView(container, obj_type, recursive=True)
+    return container_view
+
+
 # Getting properties
 def getProps(content, container_view):
     # List of properties
@@ -170,7 +178,7 @@ def distribution_vm_cpu(vm_list):
     return balanced_list
 
 
-""" TESTS
+"""
 # Distributing ordered VM (cpu / memory less) into 2 Lists (trying to balance the 2)
 def distribution_vm_cpu_memory(vm_list):
     balanced_list = []
@@ -182,8 +190,42 @@ def distribution_vm_cpu_memory(vm_list):
     for index in range(len(vm_list)):
         if not skip:
             vm = vm_list[index]
+            if len(list1) != 0 and index < len(vm_list)-1:
+                if vm[1][0] == vm_list[index+1][1][0] or mem1-mem2 > 25000000 or mem2-mem1 > 25000000:
+                    vm_bis = vm_list[index+1]
+                    if mem1 > mem2:
+                        if vm[1][1] > vm_bis[1][1]:
+                            list2.append(vm)
+                            cpu2 = cpu2 + vm[1][0]
+                            mem2 = mem2 + vm[1][1]
+                            list1.append(vm_bis)
+                            cpu1 = cpu1 + vm_bis[1][0]
+                            mem1 = mem1 + vm_bis[1][1]
+                        else:
+                            list1.append(vm)
+                            cpu1 = cpu1 + vm[1][0]
+                            mem1 = mem1 + vm[1][1]
+                            list2.append(vm_bis)
+                            cpu2 = cpu2 + vm_bis[1][0]
+                            mem2 = mem2 + vm_bis[1][1]
+                    else:
+                        if vm[1][1] > vm_bis[1][1]:
+                            list2.append(vm)
+                            cpu2 = cpu2 + vm[1][0]
+                            mem2 = mem2 + vm[1][1]
+                            list1.append(vm_bis)
+                            cpu1 = cpu1 + vm_bis[1][0]
+                            mem1 = mem1 + vm_bis[1][1]
+                        else:
+                            list1.append(vm)
+                            cpu1 = cpu1 + vm[1][0]
+                            mem1 = mem1 + vm[1][1]
+                            list2.append(vm_bis)
+                            cpu2 = cpu2 + vm_bis[1][0]
+                            mem2 = mem2 + vm_bis[1][1]
+                    skip = True
             # Initiation
-            if len(list1) == 0:
+            elif len(list1) == 0:
                 list1.append(vm)
                 cpu1 = vm[1][0]
                 mem1 = vm[1][1]
@@ -206,6 +248,8 @@ def distribution_vm_cpu_memory(vm_list):
                 list1.append(vm)
                 cpu1 = cpu1 + vm[1][0]
                 mem1 = mem1 + vm[1][1]
+        else:
+            skip = False
     sum1.append(cpu1)
     sum1.append(mem1)
     sum2.append(cpu2)
@@ -224,36 +268,61 @@ def print_list(plist):
         print(p)
 
 
+# ----------------------------
+
+
+# Getting VM and their performances then distributing them in 2 balanced lists
+def main_vm(content):
+    # Getting list of all VMs
+    vm_view = getVM(content)
+    vm_list = vm_view.view
+    # Filtering the powered ON VMs (deleting powered OFF VMs of list)
+    vm_list = vm_power_filter(vm_list)
+
+    # Getting properties of powered ON VMs
+#    prop_test = getProps(content, vm_view)
+
+    # Getting the perf of all VMs
+    perf_data = get_perf(content, vm_list)
+
+    if len(perf_data) > 1:
+
+        # Sorting and printing the result
+        vm_list_cpu = sort_by_cpu(perf_data)
+
+        # Distributing VMs in 2 lists (hoping it will be balanced)
+        vm_lists = distribution_vm_cpu(vm_list_cpu)
+        print("------ DISTRIBUTION BY CPU USAGE ------\n\nList 1 :")
+        print_list(vm_lists[0])
+        print("\nList 2 :")
+        print_list(vm_lists[1])
+        print("\nSummary :\nCPU / Memory list 1 :", vm_lists[2], "(MHz/KB)\nCPU / Memory list 2 :", vm_lists[3],
+              "(MHz/KB)")
+
+        return vm_lists
+
+    else:
+
+        print("Not enough data to create 2 groups.")
+        return perf_data
+
+
 # Authentication to VSphere
 vcenter = authVSphere()
 print("\n")
 
-# Getting list of all VMs
-VM_view = getVM(vcenter)
-VM_List = VM_view.view
-# Filtering the powered ON VMs (deleting powered OFF VMs of list)
-VM_List = vm_power_filter(VM_List)
+# VM program
+vm_balanced = main_vm(vcenter)
 
-# Getting properties of powered ON VMs
-prop_test = getProps(vcenter, VM_view)
-
-# Getting the perf of all VMs
-perf_data = get_perf(vcenter, VM_List)
-
-# Sorting and printing the result
-vm_list_cpu = sort_by_cpu(perf_data)
-
-# Distributing VMs in 2 lists (hoping it will be balanced)
-vm_lists_cpu = distribution_vm_cpu(vm_list_cpu)
-print("------ DISTRIBUTION BY CPU USAGE ------\n")
-print("List 1 :")
-print_list(vm_lists_cpu[0])
-print("List 2 :")
-print_list(vm_lists_cpu[1])
-print("Summary :")
-print("CPU / Memory list 1 :", vm_lists_cpu[2], "(MHz/KB)   /   CPU / Memory list 2 :", vm_lists_cpu[3], "(MHz/KB)")
-
-# Next step : Get hosts
+"""
+# Getting list of all Hosts
+host_view = get_host(vcenter)
+host_list = list(host_view.view)
+print("------ LIST OF HOSTS ------\n")
+print(host_list[0].summary)
+print("\n------\n")
+print(host_list[1].summary)
+"""
 
 
 # Disconnect(service_instance)
