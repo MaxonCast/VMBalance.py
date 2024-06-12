@@ -133,6 +133,21 @@ def sort_by_cpu(data):
     return new_data
 
 
+# Sorting the VM List by Memory consumed (highest to lowest)
+def sort_by_mem(data):
+    for temp1 in range(len(data)-1):
+        for temp2 in range(temp1+1, len(data)):
+            if len(data[temp1]) > 1 and len(data[temp2]) > 1:
+                if data[temp1][1][1] > data[temp2][1][1]:
+                    temp = data[temp1]
+                    data[temp1] = data[temp2]
+                    data[temp2] = temp
+    new_data = []
+    for i in data:
+        new_data = [i] + new_data
+    return new_data
+
+
 # Filter powered OFF VMs
 def vm_power_filter(vm_list):
     new_list = []
@@ -156,7 +171,7 @@ def distribution_vm_cpu(vm_list):
             list1.append(vm)
             cpu1 = vm[1][0]
             mem1 = vm[1][1]
-        elif cpu1 == cpu2 or mem1-mem2 > 20000000 or mem2-mem1 > 20000000:
+        elif (cpu1 == cpu2 or mem1-mem2 > 20000000 or mem2-mem1 > 20000000) and vm[1][0] < 700:
             if mem1 > mem2:
                 list2.append(vm)
                 cpu2 = cpu2 + vm[1][0]
@@ -185,7 +200,7 @@ def distribution_vm_cpu(vm_list):
     return balanced_list
 
 
-# Distributing ordered VM (cpu) into 2 Lists (trying to balance the 2)
+# Distributing ordered VM (mem) into 2 Lists (trying to balance the 2)
 def distribution_vm_mem(vm_list):
     balanced_list = []
     list1, list2 = [], []
@@ -199,7 +214,7 @@ def distribution_vm_mem(vm_list):
             list1.append(vm)
             cpu1 = vm[1][0]
             mem1 = vm[1][1]
-        elif mem1 == mem2 or cpu1-cpu2 > 700 or cpu2-cpu1 > 700:
+        elif (mem1 == mem2 or cpu1-cpu2 > 700 or cpu2-cpu1 > 700) and vm[1][1] < 20000000:
             if cpu1 > cpu2:
                 list2.append(vm)
                 cpu2 = cpu2 + vm[1][0]
@@ -253,8 +268,9 @@ def main_vm(content):
 
     if len(perf_data) > 1:
 
-        # Sorting and printing the result
+        # Sorting VM by CPU / Mem
         vm_list_cpu = sort_by_cpu(perf_data)
+        vm_list_mem = sort_by_mem(perf_data)
 
         # Distributing VMs in 2 lists (cpu balance)
         vm_lists1 = distribution_vm_cpu(vm_list_cpu)
@@ -266,7 +282,7 @@ def main_vm(content):
               "(MHz/KB)")
 
         # Distributing VMs in 2 lists (memory balance)
-        vm_lists2 = distribution_vm_mem(vm_list_cpu)
+        vm_lists2 = distribution_vm_mem(vm_list_mem)
         print("\n------ DISTRIBUTION BY MEMORY CONSUMED ------\n\nList 1 :")
         print_list(vm_lists2[0])
         print("\nList 2 :")
