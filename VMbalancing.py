@@ -211,8 +211,8 @@ def print_list(plist):
 # Getting VM and their performances then distributing them in 2 balanced lists
 def main_vm(content):
     # Get ESXi (dirty way because the other one doesn't work)
-    host_b = content.searchIndex.FindByDnsName(dnsName="thing1", vmSearch=False).name
-    host_j = content.searchIndex.FindByDnsName(dnsName="thing2", vmSearch=False).name
+    host1 = content.searchIndex.FindByDnsName(dnsName="thing1", vmSearch=False).name
+    host2 = content.searchIndex.FindByDnsName(dnsName="thing2", vmSearch=False).name
 
     # Getting list of all VMs
     vm_view = getVM(content)
@@ -237,9 +237,9 @@ def main_vm(content):
 
         # Distributing VMs in 2 balanced lists
         vm_lists = distribution_vm_cpu(vm_list_cpu, cpu_percent, mem_percent)
-        print("------ DISTRIBUTION BY CPU USAGE ------\n\n-", host_b, ":")
+        print("------ DISTRIBUTION BY CPU USAGE ------\n\n-", host1, ":")
         print_list(vm_lists[0])
-        print("\n-", host_j, ":")
+        print("\n-", host2, ":")
         print_list(vm_lists[1])
         print("\nSummary :\nCPU / Memory list 1 :", vm_lists[2], "(MHz/KB)\nCPU / Memory list 2 :", vm_lists[3],
               "(MHz/KB)")
