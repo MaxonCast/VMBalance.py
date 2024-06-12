@@ -158,88 +158,74 @@ def vm_power_filter(vm_list):
 
 
 # Distributing ordered VM (cpu) into 2 Lists (trying to balance the 2)
-def distribution_vm_cpu(vm_list):
-    balanced_list = []
+def distribution_vm_cpu(vm_list, cpu_total, mem_total):
+    cpu_percent = cpu_total / 20
+    mem_percent = mem_total / 20
     list1, list2 = [], []
-    sum1, sum2 = [], []
-    cpu1, cpu2 = 0, 0
-    mem1, mem2 = 0, 0
+    sum1, sum2 = [0, 0], [0, 0]
     for index in range(len(vm_list)):
         vm = vm_list[index]
         # Initiation
         if len(list1) == 0:
             list1.append(vm)
-            cpu1 = vm[1][0]
-            mem1 = vm[1][1]
-        elif (cpu1 == cpu2 or mem1-mem2 > 20000000 or mem2-mem1 > 20000000) and vm[1][0] < 700:
-            if mem1 > mem2:
+            sum1[0] = vm[1][0]
+            sum1[1] = vm[1][1]
+        elif ((sum1[0] == sum2[0] or sum1[1]-sum2[1] > mem_percent or sum2[1]-sum1[1] > mem_percent)
+              and vm[1][0] < cpu_percent):
+            if sum1[1] > sum2[1]:
                 list2.append(vm)
-                cpu2 = cpu2 + vm[1][0]
-                mem2 = mem2 + vm[1][1]
+                sum2[0] = sum2[0] + vm[1][0]
+                sum2[1] = sum2[1] + vm[1][1]
             else:
                 list1.append(vm)
-                cpu1 = cpu1 + vm[1][0]
-                mem1 = mem1 + vm[1][1]
+                sum1[0] = sum1[0] + vm[1][0]
+                sum1[1] = sum1[1] + vm[1][1]
         # Equilibrate CPU
-        elif cpu1 > cpu2:
+        elif sum1[0] > sum2[0]:
             list2.append(vm)
-            cpu2 = cpu2 + vm[1][0]
-            mem2 = mem2 + vm[1][1]
+            sum2[0] = sum2[0] + vm[1][0]
+            sum2[1] = sum2[1] + vm[1][1]
         else:
             list1.append(vm)
-            cpu1 = cpu1 + vm[1][0]
-            mem1 = mem1 + vm[1][1]
-    sum1.append(cpu1)
-    sum1.append(mem1)
-    sum2.append(cpu2)
-    sum2.append(mem2)
-    balanced_list.append(list1)
-    balanced_list.append(list2)
-    balanced_list.append(sum1)
-    balanced_list.append(sum2)
+            sum1[0] = sum1[0] + vm[1][0]
+            sum1[1] = sum1[1] + vm[1][1]
+    balanced_list = [list1, list2, sum1, sum2]
     return balanced_list
 
 
 # Distributing ordered VM (mem) into 2 Lists (trying to balance the 2)
-def distribution_vm_mem(vm_list):
-    balanced_list = []
+def distribution_vm_mem(vm_list, cpu_total, mem_total):
+    cpu_percent = cpu_total / 20
+    mem_percent = mem_total / 20
     list1, list2 = [], []
-    sum1, sum2 = [], []
-    cpu1, cpu2 = 0, 0
-    mem1, mem2 = 0, 0
+    sum1, sum2 = [0, 0], [0, 0]
     for index in range(len(vm_list)):
         vm = vm_list[index]
         # Initiation
         if len(list1) == 0:
             list1.append(vm)
-            cpu1 = vm[1][0]
-            mem1 = vm[1][1]
-        elif (mem1 == mem2 or cpu1-cpu2 > 700 or cpu2-cpu1 > 700) and vm[1][1] < 20000000:
-            if cpu1 > cpu2:
+            sum1[0] = vm[1][0]
+            sum1[1] = vm[1][1]
+        elif ((sum1[1] == sum2[1] or sum1[0]-sum2[0] > cpu_percent or sum2[0]-sum1[0] > cpu_percent)
+              and vm[1][1] < mem_percent):
+            if sum1[0] > sum2[0]:
                 list2.append(vm)
-                cpu2 = cpu2 + vm[1][0]
-                mem2 = mem2 + vm[1][1]
+                sum2[0] = sum2[0] + vm[1][0]
+                sum2[1] = sum2[1] + vm[1][1]
             else:
                 list1.append(vm)
-                cpu1 = cpu1 + vm[1][0]
-                mem1 = mem1 + vm[1][1]
+                sum1[0] = sum1[0] + vm[1][0]
+                sum1[1] = sum1[1] + vm[1][1]
         # Equilibrate Memory
-        elif mem1 > mem2:
+        elif sum1[1] > sum2[1]:
             list2.append(vm)
-            cpu2 = cpu2 + vm[1][0]
-            mem2 = mem2 + vm[1][1]
+            sum2[0] = sum2[0] + vm[1][0]
+            sum2[1] = sum2[1] + vm[1][1]
         else:
             list1.append(vm)
-            cpu1 = cpu1 + vm[1][0]
-            mem1 = mem1 + vm[1][1]
-    sum1.append(cpu1)
-    sum1.append(mem1)
-    sum2.append(cpu2)
-    sum2.append(mem2)
-    balanced_list.append(list1)
-    balanced_list.append(list2)
-    balanced_list.append(sum1)
-    balanced_list.append(sum2)
+            sum1[0] = sum1[0] + vm[1][0]
+            sum1[1] = sum1[1] + vm[1][1]
+    balanced_list = [list1, list2, sum1, sum2]
     return balanced_list
 
 
@@ -272,8 +258,13 @@ def main_vm(content):
         vm_list_cpu = sort_by_cpu(perf_data)
         vm_list_mem = sort_by_mem(perf_data)
 
+        all_cpu, all_mem = 0, 0
+        for vm in vm_list_cpu:
+            all_cpu = all_cpu + vm[1][0]
+            all_mem = all_mem + vm[1][1]
+
         # Distributing VMs in 2 lists (cpu balance)
-        vm_lists1 = distribution_vm_cpu(vm_list_cpu)
+        vm_lists1 = distribution_vm_cpu(vm_list_cpu, all_cpu, all_mem)
         print("------ DISTRIBUTION BY CPU USAGE ------\n\nList 1 :")
         print_list(vm_lists1[0])
         print("\nList 2 :")
@@ -282,7 +273,7 @@ def main_vm(content):
               "(MHz/KB)")
 
         # Distributing VMs in 2 lists (memory balance)
-        vm_lists2 = distribution_vm_mem(vm_list_mem)
+        vm_lists2 = distribution_vm_mem(vm_list_mem, all_cpu, all_mem)
         print("\n------ DISTRIBUTION BY MEMORY CONSUMED ------\n\nList 1 :")
         print_list(vm_lists2[0])
         print("\nList 2 :")
