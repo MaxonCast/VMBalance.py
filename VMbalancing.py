@@ -2,7 +2,6 @@ import datetime
 from getpass import getpass
 from pyVim.connect import SmartConnect  # , Disconnect
 from pyVmomi import vim, vmodl
-from random import randint
 
 
 # Connecting to VCenter
@@ -126,6 +125,21 @@ def sort_by_cpu(data):
     return new_data
 
 
+# Sorting the VM List by Memory consumed (highest to lowest)
+def sort_by_mem(data):
+    for temp1 in range(len(data)-1):
+        for temp2 in range(temp1+1, len(data)):
+            if len(data[temp1]) > 1 and len(data[temp2]) > 1:
+                if data[temp1][1][1] > data[temp2][1][1]:
+                    temp = data[temp1]
+                    data[temp1] = data[temp2]
+                    data[temp2] = temp
+    new_data = []
+    for i in data:
+        new_data = [i] + new_data
+    return new_data
+
+
 # Filter powered OFF VMs
 def vm_power_filter(vm_list):
     new_list = []
@@ -136,9 +150,7 @@ def vm_power_filter(vm_list):
 
 
 # Distributing ordered VM (cpu) into 2 Lists (trying to balance the 2)
-def distribution_vm_cpu(vm_list, cpu_total, mem_total):
-    cpu_percent = cpu_total / 20
-    mem_percent = mem_total / 20
+def distribution_vm_cpu(vm_list, cpu_percent, mem_percent):
     list1, list2 = [], []
     sum1, sum2 = [0, 0], [0, 0]
     for index in range(len(vm_list)):
@@ -149,7 +161,7 @@ def distribution_vm_cpu(vm_list, cpu_total, mem_total):
             sum1[0] = vm[1][0]
             sum1[1] = vm[1][1]
         elif ((sum1[0] == sum2[0] or sum1[1]-sum2[1] > mem_percent or sum2[1]-sum1[1] > mem_percent)
-              and vm[1][0] < cpu_percent):
+              and vm[1][0] < cpu_percent / 10):
             if sum1[1] > sum2[1]:
                 list2.append(vm)
                 sum2[0] = sum2[0] + vm[1][0]
@@ -167,6 +179,18 @@ def distribution_vm_cpu(vm_list, cpu_total, mem_total):
             list1.append(vm)
             sum1[0] = sum1[0] + vm[1][0]
             sum1[1] = sum1[1] + vm[1][1]
+    balanced_list = [list1, list2, sum1, sum2]
+    return balanced_list
+
+
+# Distributing ordered VM (cpu) into 2 Lists (trying to balance the 2)
+def distribution_vm(vm_list):
+    sorted_vm = sorted(vm_list, key=lambda x: (x[1][0], x[1][1]), reverse=True)
+    print_list(sorted_vm)
+    list1, list2 = [], []
+    sum1, sum2 = [0, 0], [0, 0]
+    for index in range(len(sorted_vm)):
+        vm = sorted_vm[index]
     balanced_list = [list1, list2, sum1, sum2]
     return balanced_list
 
@@ -196,9 +220,6 @@ def print_list(plist):
 
 # Getting VM and their performances then distributing them in 2 balanced lists
 def main_vm(content):
-    # Get ESXi (dirty way because the other one doesn't work)
-    host1 = content.searchIndex.FindByDnsName(dnsName="vxrail-b.hsc.loc", vmSearch=False).name
-    host2 = content.searchIndex.FindByDnsName(dnsName="vxrail-j.hsc.loc", vmSearch=False).name
 
     # Getting list of all VMs
     vm_view = getVM(content)
@@ -208,14 +229,6 @@ def main_vm(content):
 
     # Getting the perf of all VMs
     perf_data = get_perf(content, vm_list)
-
-    somme = 0
-    """
-    for vm in perf_data:
-        x = randint(100, 1000)
-        vm[1][0] = vm[1][0] + x
-        somme = somme + x
-    """
 
     if len(perf_data) > 1:
 
@@ -231,19 +244,20 @@ def main_vm(content):
 
         # Distributing VMs in 2 balanced lists
         vm_lists = distribution_vm_cpu(vm_list_cpu, cpu_percent, mem_percent)
-        print("------ DISTRIBUTION BY CPU USAGE ------\n\n-", host1, ":")
+        print("------ DISTRIBUTION BY CPU USAGE ------\n\nList 2 :")
         print_list(vm_lists[0])
-        print("\n-", host2, ":")
+        print("\nList 1 :")
         print_list(vm_lists[1])
         print("\nSummary :\nCPU / Memory list 1 :", vm_lists[2][0]/1000, "GHz /", vm_lists[2][1]/1000000, "Go",
               "\nCPU / Memory list 2 :", vm_lists[3][0]/1000, "GHz /", vm_lists[3][1]/1000000, "Go")
         valid_test(vm_lists, cpu_percent, mem_percent)
-        print(somme)
 
         # VM Properties
         print("\n------ VM PROPERTIES ------\n")
         vm_props = get_props(vcenter, vm_view)
-        print_list(vm_props)
+        # print_list(vm_props)
+
+        # distribution_vm(perf_data)
 
         return vm_lists
 
