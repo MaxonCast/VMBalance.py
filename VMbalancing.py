@@ -2,6 +2,7 @@ import datetime
 from getpass import getpass
 from pyVim.connect import SmartConnect  # , Disconnect
 from pyVmomi import vim, vmodl
+from random import randint
 
 
 # Connecting to VCenter
@@ -31,9 +32,9 @@ def getVM(content):
 
 
 # Getting properties
-def getProps(content, container_view):
+def get_props(content, container_view):
     # List of properties
-    vm_properties = ["name", "config.uuid"]
+    vm_properties = ["name"]
     # obj_spec setup
     obj_spec = vmodl.query.PropertyCollector.ObjectSpec()
     obj_spec.obj = container_view
@@ -80,7 +81,7 @@ def get_perf(content, obj_list):
         metric_ids = [vim.PerformanceManager.MetricId(counterId=counter, instance="*") for counter in counter_ids]
         start_time = datetime.datetime.now() - datetime.timedelta(hours=1)
         end_time = datetime.datetime.now()
-        spec = vim.PerformanceManager.QuerySpec(maxSample=1, entity=obj, metricId=metric_ids, startTime=start_time,
+        spec = vim.PerformanceManager.QuerySpec(maxSample=1000, entity=obj, metricId=metric_ids, startTime=start_time,
                                                 endTime=end_time)
         result_stats = content.perfManager.QueryStats(querySpec=[spec])
         output = ""
@@ -116,21 +117,6 @@ def sort_by_cpu(data):
         for temp2 in range(temp1+1, len(data)):
             if len(data[temp1]) > 1 and len(data[temp2]) > 1:
                 if data[temp1][1][0] > data[temp2][1][0]:
-                    temp = data[temp1]
-                    data[temp1] = data[temp2]
-                    data[temp2] = temp
-    new_data = []
-    for i in data:
-        new_data = [i] + new_data
-    return new_data
-
-
-# Sorting the VM List by Memory consumed (highest to lowest)
-def sort_by_mem(data):
-    for temp1 in range(len(data)-1):
-        for temp2 in range(temp1+1, len(data)):
-            if len(data[temp1]) > 1 and len(data[temp2]) > 1:
-                if data[temp1][1][1] > data[temp2][1][1]:
                     temp = data[temp1]
                     data[temp1] = data[temp2]
                     data[temp2] = temp
@@ -211,8 +197,8 @@ def print_list(plist):
 # Getting VM and their performances then distributing them in 2 balanced lists
 def main_vm(content):
     # Get ESXi (dirty way because the other one doesn't work)
-    host1 = content.searchIndex.FindByDnsName(dnsName="thing1", vmSearch=False).name
-    host2 = content.searchIndex.FindByDnsName(dnsName="thing2", vmSearch=False).name
+    host1 = content.searchIndex.FindByDnsName(dnsName="vxrail-b.hsc.loc", vmSearch=False).name
+    host2 = content.searchIndex.FindByDnsName(dnsName="vxrail-j.hsc.loc", vmSearch=False).name
 
     # Getting list of all VMs
     vm_view = getVM(content)
@@ -222,6 +208,14 @@ def main_vm(content):
 
     # Getting the perf of all VMs
     perf_data = get_perf(content, vm_list)
+
+    somme = 0
+    """
+    for vm in perf_data:
+        x = randint(100, 1000)
+        vm[1][0] = vm[1][0] + x
+        somme = somme + x
+    """
 
     if len(perf_data) > 1:
 
@@ -241,9 +235,15 @@ def main_vm(content):
         print_list(vm_lists[0])
         print("\n-", host2, ":")
         print_list(vm_lists[1])
-        print("\nSummary :\nCPU / Memory list 1 :", vm_lists[2], "(MHz/KB)\nCPU / Memory list 2 :", vm_lists[3],
-              "(MHz/KB)")
+        print("\nSummary :\nCPU / Memory list 1 :", vm_lists[2][0]/1000, "GHz /", vm_lists[2][1]/1000000, "Go",
+              "\nCPU / Memory list 2 :", vm_lists[3][0]/1000, "GHz /", vm_lists[3][1]/1000000, "Go")
         valid_test(vm_lists, cpu_percent, mem_percent)
+        print(somme)
+
+        # VM Properties
+        print("\n------ VM PROPERTIES ------\n")
+        vm_props = get_props(vcenter, vm_view)
+        print_list(vm_props)
 
         return vm_lists
 
