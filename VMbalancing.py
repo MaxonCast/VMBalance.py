@@ -41,7 +41,7 @@ def get_host(content):
 # Getting properties
 def get_props(content, container_view):
     # List of properties
-    vm_properties = ["name", "parent"]
+    host_properties = ["name"]
     # obj_spec setup
     obj_spec = vmodl.query.PropertyCollector.ObjectSpec()
     obj_spec.obj = container_view
@@ -56,8 +56,8 @@ def get_props(content, container_view):
     obj_spec.selectSet = [traversal_spec]
     # property_spec setup
     property_spec = vmodl.query.PropertyCollector.PropertySpec()
-    property_spec.type = vim.VirtualMachine
-    property_spec.pathSet = vm_properties
+    property_spec.type = vim.HostSystem
+    property_spec.pathSet = host_properties
     # filter_spec setup
     filter_spec = vmodl.query.PropertyCollector.FilterSpec()
     filter_spec.objectSet = [obj_spec]
@@ -68,9 +68,9 @@ def get_props(content, container_view):
     #
     for obj in props:
         properties = {}
+        properties['obj'] = obj.obj
         for prop in obj.propSet:
             properties[prop.name] = prop.val
-        properties['obj'] = obj.obj
         data.append(properties)
     return data
 
@@ -134,18 +134,15 @@ def sort_by_cpu(data):
 
 
 # Sorting the VM List by Memory consumed (highest to lowest)
-def sort_by_mem(data):
+def sort_by_abc(data):
     for temp1 in range(len(data)-1):
         for temp2 in range(temp1+1, len(data)):
             if len(data[temp1]) > 1 and len(data[temp2]) > 1:
-                if data[temp1][1][1] > data[temp2][1][1]:
+                if data[temp1][0].upper() > data[temp2][0].upper():
                     temp = data[temp1]
                     data[temp1] = data[temp2]
                     data[temp2] = temp
-    new_data = []
-    for i in data:
-        new_data = [i] + new_data
-    return new_data
+    return data
 
 
 # Filter powered OFF VMs
@@ -186,18 +183,6 @@ def distribution_vm_cpu(vm_list, cpu_percent, mem_percent):
             list1.append(vm)
             sum1[0] = sum1[0] + vm[1][0]
             sum1[1] = sum1[1] + vm[1][1]
-    balanced_list = [list1, list2, sum1, sum2]
-    return balanced_list
-
-
-# Distributing ordered VM (cpu) into 2 Lists (trying to balance the 2)
-def distribution_vm(vm_list):
-    sorted_vm = sorted(vm_list, key=lambda x: (x[1][0], x[1][1]), reverse=True)
-    print_list(sorted_vm)
-    list1, list2 = [], []
-    sum1, sum2 = [0, 0], [0, 0]
-    for index in range(len(sorted_vm)):
-        vm = sorted_vm[index]
     balanced_list = [list1, list2, sum1, sum2]
     return balanced_list
 
@@ -251,23 +236,17 @@ def main_vm(content):
 
         # Distributing VMs in 2 balanced lists
         vm_lists = distribution_vm_cpu(vm_list_cpu, cpu_percent, mem_percent)
-        print("------ DISTRIBUTION BY CPU USAGE ------\n\nList 1 :")
+        vm_lists[0] = sort_by_abc(vm_lists[0])
+        vm_lists[1] = sort_by_abc(vm_lists[1])
+        print("------ DISTRIBUTION BY CPU USAGE ------\n\n-", host1.summary.config.name, ":")
         print_list(vm_lists[0])
-        print("\nList 2 :")
+        print("\n-", host2.summary.config.name, ":")
         print_list(vm_lists[1])
-        print("\nSummary :\nCPU / Memory list 1 :", vm_lists[2][0]/1000, "GHz /", vm_lists[2][1]/1000000, "Go",
-              "\nCPU / Memory list 2 :", vm_lists[3][0]/1000, "GHz /", vm_lists[3][1]/1000000, "Go")
+        print("\nSummary :\nCPU / Memory", host1.summary.config.name, ":", vm_lists[2][0]/1000, "GHz /",
+              vm_lists[2][1]/1000000, "Go",
+              "\nCPU / Memory", host2.summary.config.name, ":", vm_lists[3][0]/1000, "GHz /",
+              vm_lists[3][1]/1000000, "Go")
         valid_test(vm_lists, cpu_percent, mem_percent)
-
-        # VM Properties
-        print("\n------ VM PROPERTIES ------\n")
-        vm_props = get_props(vcenter, vm_view)
-        print_list(vm_props)
-
-        # distribution_vm(perf_data)
-
-        #hosts = get_host(vcenter).view
-        #print(hosts[0].config)
 
         return vm_lists
 
@@ -283,6 +262,16 @@ print("\n")
 
 # VM program
 vm_balanced = main_vm(vcenter)
+
+# Getting Hosts
+hosts = get_host(vcenter).view
+host1 = hosts[0]
+host2 = hosts[1]
+
+# VM Properties
+print("\n------ VM PROPERTIES ------\n")
+vm_props = get_props(vcenter, get_host(vcenter))
+print_list(vm_props)
 
 
 # Disconnect(service_instance)
