@@ -30,10 +30,18 @@ def getVM(content):
     return container_view
 
 
+# Getting VM list
+def get_host(content):
+    container = content.rootFolder
+    obj_type = [vim.HostSystem]
+    container_view = content.viewManager.CreateContainerView(container, obj_type, recursive=True)
+    return container_view
+
+
 # Getting properties
 def get_props(content, container_view):
     # List of properties
-    vm_properties = ["name"]
+    vm_properties = ["name", "parent"]
     # obj_spec setup
     obj_spec = vmodl.query.PropertyCollector.ObjectSpec()
     obj_spec.obj = container_view
@@ -160,8 +168,7 @@ def distribution_vm_cpu(vm_list, cpu_percent, mem_percent):
             list1.append(vm)
             sum1[0] = vm[1][0]
             sum1[1] = vm[1][1]
-        elif ((sum1[0] == sum2[0] or sum1[1]-sum2[1] > mem_percent or sum2[1]-sum1[1] > mem_percent)
-              and vm[1][0] < cpu_percent / 10):
+        elif -cpu_percent/2 < sum1[0]-sum2[0] < cpu_percent/2 and -mem_percent < sum1[1]-sum2[1] < mem_percent:
             if sum1[1] > sum2[1]:
                 list2.append(vm)
                 sum2[0] = sum2[0] + vm[1][0]
@@ -244,9 +251,9 @@ def main_vm(content):
 
         # Distributing VMs in 2 balanced lists
         vm_lists = distribution_vm_cpu(vm_list_cpu, cpu_percent, mem_percent)
-        print("------ DISTRIBUTION BY CPU USAGE ------\n\nList 2 :")
+        print("------ DISTRIBUTION BY CPU USAGE ------\n\nList 1 :")
         print_list(vm_lists[0])
-        print("\nList 1 :")
+        print("\nList 2 :")
         print_list(vm_lists[1])
         print("\nSummary :\nCPU / Memory list 1 :", vm_lists[2][0]/1000, "GHz /", vm_lists[2][1]/1000000, "Go",
               "\nCPU / Memory list 2 :", vm_lists[3][0]/1000, "GHz /", vm_lists[3][1]/1000000, "Go")
@@ -255,9 +262,12 @@ def main_vm(content):
         # VM Properties
         print("\n------ VM PROPERTIES ------\n")
         vm_props = get_props(vcenter, vm_view)
-        # print_list(vm_props)
+        print_list(vm_props)
 
         # distribution_vm(perf_data)
+
+        #hosts = get_host(vcenter).view
+        #print(hosts[0].config)
 
         return vm_lists
 
