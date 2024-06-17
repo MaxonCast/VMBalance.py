@@ -8,7 +8,7 @@ from pyVmomi import vim, vmodl
 def authVSphere():
     content = "nothing"
     # Trying to connect to VCenter
-    service_instance = SmartConnect(host=getpass(prompt="Hostname : "), user=getpass(prompt="Username : "),
+    service_instance = SmartConnect(host=input("Hostname : "), user=input("Username : "),
                                     pwd=getpass(prompt="Password : "))
     # Connection verification
     if not service_instance:
@@ -41,7 +41,7 @@ def get_host(content):
 # Getting properties
 def get_props(content, container_view):
     # List of properties
-    host_properties = ["name"]
+    host_properties = ["name", "vm"]
     # obj_spec setup
     obj_spec = vmodl.query.PropertyCollector.ObjectSpec()
     obj_spec.obj = container_view
@@ -65,13 +65,16 @@ def get_props(content, container_view):
     # props & data setup
     props = content.propertyCollector.RetrieveContents([filter_spec])
     data = []
-    #
     for obj in props:
         properties = {}
-        properties['obj'] = obj.obj
-        for prop in obj.propSet:
-            properties[prop.name] = prop.val
-        data.append(properties)
+        vm_list = []
+        test = obj.propSet[1]
+        for vm in obj.propSet[1].val:
+            vm_list.append(vm.config.name)
+        if len(vm_list) > 0:
+            properties['name'] = obj.obj.name
+            properties['vm_list'] = vm_list
+            data.append(properties)
     return data
 
 
@@ -165,7 +168,7 @@ def distribution_vm_cpu(vm_list, cpu_percent, mem_percent):
             list1.append(vm)
             sum1[0] = vm[1][0]
             sum1[1] = vm[1][1]
-        elif -cpu_percent/2 < sum1[0]-sum2[0] < cpu_percent/2 and -mem_percent < sum1[1]-sum2[1] < mem_percent:
+        elif -cpu_percent*0.5 < sum1[0]-sum2[0] < cpu_percent*0.5 and not -mem_percent < sum1[1]-sum2[1] < mem_percent:
             if sum1[1] > sum2[1]:
                 list2.append(vm)
                 sum2[0] = sum2[0] + vm[1][0]
@@ -213,6 +216,11 @@ def print_list(plist):
 # Getting VM and their performances then distributing them in 2 balanced lists
 def main_vm(content):
 
+    # Getting Hosts
+    hosts = get_host(vcenter).view
+    host1 = hosts[0]
+    host2 = hosts[1]
+
     # Getting list of all VMs
     vm_view = getVM(content)
     vm_list = vm_view.view
@@ -236,19 +244,21 @@ def main_vm(content):
 
         # Distributing VMs in 2 balanced lists
         vm_lists = distribution_vm_cpu(vm_list_cpu, cpu_percent, mem_percent)
-        vm_lists[0] = sort_by_abc(vm_lists[0])
-        vm_lists[1] = sort_by_abc(vm_lists[1])
+        vm_list1 = sort_by_abc(vm_lists[0])
+        vm_list2 = sort_by_abc(vm_lists[1])
         print("------ DISTRIBUTION BY CPU USAGE ------\n\n-", host1.summary.config.name, ":")
-        print_list(vm_lists[0])
+        print_list(vm_list1)
         print("\n-", host2.summary.config.name, ":")
-        print_list(vm_lists[1])
+        print_list(vm_list2)
         print("\nSummary :\nCPU / Memory", host1.summary.config.name, ":", vm_lists[2][0]/1000, "GHz /",
               vm_lists[2][1]/1000000, "Go",
               "\nCPU / Memory", host2.summary.config.name, ":", vm_lists[3][0]/1000, "GHz /",
               vm_lists[3][1]/1000000, "Go")
         valid_test(vm_lists, cpu_percent, mem_percent)
 
-        return vm_lists
+        balanced_vm = [vm_list1, vm_list2]
+
+        return balanced_vm
 
     else:
 
@@ -263,15 +273,20 @@ print("\n")
 # VM program
 vm_balanced = main_vm(vcenter)
 
-# Getting Hosts
-hosts = get_host(vcenter).view
-host1 = hosts[0]
-host2 = hosts[1]
+# Hosts Properties
+host_props = get_props(vcenter, get_host(vcenter))
 
-# VM Properties
-print("\n------ VM PROPERTIES ------\n")
-vm_props = get_props(vcenter, get_host(vcenter))
-print_list(vm_props)
+print("\n------ WHO'S MOVING ? ------\n")
+print("------ From", host_props[1]['name'], "to", host_props[0]['name'], "------\n")
+for vm1 in vm_balanced[0]:
+    for vm2 in host_props[1]['vm_list']:
+        if vm1[0] == vm2:
+            print(vm2)
+print("\n------ From", host_props[0]['name'], "to", host_props[1]['name'], "------\n")
+for vm1 in vm_balanced[1]:
+    for vm2 in host_props[0]['vm_list']:
+        if vm1[0] == vm2:
+            print(vm2)
 
 
 # Disconnect(service_instance)
