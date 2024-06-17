@@ -192,16 +192,20 @@ def distribution_vm_cpu(vm_list, cpu_percent, mem_percent):
 
 # Calculate differences to print a result
 def valid_test(vm_list, cpu_percent, mem_percent):
-    # CPU
+    # CPU test
     if -cpu_percent < vm_list[2][0]-vm_list[3][0] < cpu_percent:
-        print("CPU Result : Good")
+        cpu = "Good"
     else:
-        print("CPU Result : BAD !")
-    # MEMORY
+        cpu = "BAD !"
+    # MEMORY test
     if -mem_percent <= vm_list[2][1]-vm_list[3][1] < mem_percent:
-        print("Memory Result : Good")
+        mem = "Good"
     else:
-        print("Memory Result : BAD !")
+        mem = "BAD !"
+    # Printing results
+    print("CPU Result :", cpu, "\nMemory Result :", mem)
+    if cpu == "BAD !" or mem == "BAD !":
+        print("I do not recommend moving VMs now !")
 
 
 # Print list line by line
@@ -277,16 +281,18 @@ vm_balanced = main_vm(vcenter)
 host_props = get_props(vcenter, get_host(vcenter))
 
 print("\n------ WHO'S MOVING ? ------\n")
-print("------ From", host_props[1]['name'], "to", host_props[0]['name'], "------\n")
+print("------", host_props[1]['name'], "--->", host_props[0]['name'], "------\n")
 for vm1 in vm_balanced[0]:
     for vm2 in host_props[1]['vm_list']:
         if vm1[0] == vm2:
             print(vm2)
-print("\n------ From", host_props[0]['name'], "to", host_props[1]['name'], "------\n")
+print("\n------", host_props[0]['name'], "--->", host_props[1]['name'], "------\n")
 for vm1 in vm_balanced[1]:
     for vm2 in host_props[0]['vm_list']:
         if vm1[0] == vm2:
             print(vm2)
+
+print("End")
 
 
 # Disconnect(service_instance)
