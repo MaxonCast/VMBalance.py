@@ -68,7 +68,6 @@ def get_props(content, container_view):
     for obj in props:
         properties = {}
         vm_list = []
-        test = obj.propSet[1]
         for vm in obj.propSet[1].val:
             vm_list.append(vm.config.name)
         if len(vm_list) > 0:
@@ -168,7 +167,7 @@ def distribution_vm_cpu(vm_list, cpu_percent, mem_percent):
             list1.append(vm)
             sum1[0] = vm[1][0]
             sum1[1] = vm[1][1]
-        elif -cpu_percent*0.5 < sum1[0]-sum2[0] < cpu_percent*0.5 and not -mem_percent < sum1[1]-sum2[1] < mem_percent:
+        elif -cpu_percent*0.8 < sum1[0]-sum2[0] < cpu_percent*0.8 and not -mem_percent < sum1[1]-sum2[1] < mem_percent:
             if sum1[1] > sum2[1]:
                 list2.append(vm)
                 sum2[0] = sum2[0] + vm[1][0]
@@ -292,7 +291,7 @@ for vm1 in vm_balanced[1]:
         if vm1[0] == vm2:
             print(vm2)
 
-print("End")
+print("\nEnd")
 
 
 # Disconnect(service_instance)
