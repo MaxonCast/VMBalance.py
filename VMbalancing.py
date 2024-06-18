@@ -261,6 +261,26 @@ def main_vm(content):
 
         balanced_vm = [vm_list1, vm_list2]
 
+        liste_vm1, liste_vm2 = [], []
+        liste_cpu1, liste_cpu2 = [], []
+        liste_memoire1, liste_memoire2 = [], []
+        for vm in vm_list1:
+            liste_vm1.append(vm[0])
+            liste_cpu1.append(vm[1][0])
+            liste_memoire1.append(vm[1][1])
+        for vm in vm_list2:
+            liste_vm2.append(vm[0])
+            liste_cpu2.append(vm[1][0])
+            liste_memoire2.append(vm[1][1])
+        print(1)
+        print(liste_vm1)
+        print(liste_cpu1)
+        print(liste_memoire1)
+        print(2)
+        print(liste_vm2)
+        print(liste_cpu2)
+        print(liste_memoire2)
+
         return balanced_vm
 
     else:
