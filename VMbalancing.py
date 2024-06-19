@@ -2,6 +2,7 @@ import datetime
 from getpass import getpass
 from pyVim.connect import SmartConnect  # , Disconnect
 from pyVmomi import vim, vmodl
+from pulp import LpMinimize, LpProblem, LpVariable, lpSum, value, LpStatus
 
 
 # Connecting to VCenter
@@ -122,8 +123,8 @@ def counter_filter(content):
 
 # Sorting the VM List by CPU usage (highest to lowest)
 def sort_by_cpu(data):
-    for temp1 in range(len(data)-1):
-        for temp2 in range(temp1+1, len(data)):
+    for temp1 in range(len(data) - 1):
+        for temp2 in range(temp1 + 1, len(data)):
             if len(data[temp1]) > 1 and len(data[temp2]) > 1:
                 if data[temp1][1][0] > data[temp2][1][0]:
                     temp = data[temp1]
@@ -137,8 +138,8 @@ def sort_by_cpu(data):
 
 # Sorting the VM List by Memory consumed (highest to lowest)
 def sort_by_abc(data):
-    for temp1 in range(len(data)-1):
-        for temp2 in range(temp1+1, len(data)):
+    for temp1 in range(len(data) - 1):
+        for temp2 in range(temp1 + 1, len(data)):
             if len(data[temp1]) > 1 and len(data[temp2]) > 1:
                 if data[temp1][0].upper() > data[temp2][0].upper():
                     temp = data[temp1]
@@ -167,7 +168,8 @@ def distribution_vm_cpu(vm_list, cpu_percent, mem_percent):
             list1.append(vm)
             sum1[0] = vm[1][0]
             sum1[1] = vm[1][1]
-        elif -cpu_percent*0.8 < sum1[0]-sum2[0] < cpu_percent*0.8 and not -mem_percent < sum1[1]-sum2[1] < mem_percent:
+        elif -cpu_percent * 0.8 < sum1[0] - sum2[0] < cpu_percent * 0.8 and not -mem_percent < sum1[1] - sum2[
+            1] < mem_percent:
             if sum1[1] > sum2[1]:
                 list2.append(vm)
                 sum2[0] = sum2[0] + vm[1][0]
@@ -190,14 +192,20 @@ def distribution_vm_cpu(vm_list, cpu_percent, mem_percent):
 
 
 # Calculate differences to print a result
-def valid_test(vm_list, cpu_percent, mem_percent):
+def valid_test(data):
     # CPU test
-    if -cpu_percent < vm_list[2][0]-vm_list[3][0] < cpu_percent:
+    cpu_group1 = data["group1_cpu"]
+    cpu_group2 = data["group2_cpu"]
+    cpu_percent = (cpu_group1 + cpu_group2) / 20
+    if -cpu_percent < cpu_group1 - cpu_group2 < cpu_percent:
         cpu = "Good"
     else:
         cpu = "BAD !"
     # MEMORY test
-    if -mem_percent <= vm_list[2][1]-vm_list[3][1] < mem_percent:
+    mem_group1 = data["group1_mem"]
+    mem_group2 = data["group2_mem"]
+    mem_percent = (mem_group1 + mem_group2) / 20
+    if -mem_percent <= mem_group1 - mem_group2 < mem_percent:
         mem = "Good"
     else:
         mem = "BAD !"
@@ -216,13 +224,159 @@ def print_list(plist):
 # ----------------------------
 
 
+# Forming the lists in order to use pulp
+def main_sorting(full_list):
+    list_vm1, list_vm2 = [], []
+    list_cpu1, list_cpu2 = [], []
+    list_mem1, list_mem2 = [], []
+    for vm in full_list[0]:
+        list_vm1.append(vm[0])
+        list_cpu1.append(vm[1][0])
+        list_mem1.append(vm[1][1])
+    for vm in full_list[1]:
+        list_vm2.append(vm[0])
+        list_cpu2.append(vm[1][0])
+        list_mem2.append(vm[1][1])
+    print("\n------ RESEARCH PULP 1 ------\n")
+    pulp1 = pulp_search(list_vm1, list_cpu1, list_mem1)
+    print("RESEARCH FINISHED\n")
+    print("\n------ RESEARCH PULP 2 ------\n")
+    pulp2 = pulp_search(list_vm2, list_cpu2, list_mem2)
+    print("RESEARCH FINISHED\n")
+    pulp_groups = {"group1": pulp1[0], "group2": pulp1[1], "group3": pulp2[0], "group4": pulp2[1]}
+    pulp_data = {"group1": pulp1[2], "group2": pulp1[3], "group3": pulp2[2], "group4": pulp2[3]}
+
+    groups = [[], []]
+    # Comparing CPU data in the first 2 groups
+    if pulp_data["group1"][0] < pulp_data["group2"][0]:
+        # Comparing CPU data in the second 2 groups
+        if pulp_data["group3"][0] < pulp_data["group4"][0]:
+            groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
+            groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
+        elif pulp_data["group3"][0] > pulp_data["group4"][0]:
+            groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
+            groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
+
+        # No issue with CPU
+        else:
+            # Comparing Memory data in the first 2 groups
+            if pulp_data["group1"][1] < pulp_data["group2"][1]:
+                # Comparing Memory data in the second 2 groups
+                if pulp_data["group3"][1] < pulp_data["group4"][1]:
+                    groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
+                    groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
+                else:
+                    groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
+                    groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
+
+            # Comparing Memory data in the first 2 groups
+            elif pulp_data["group1"][1] > pulp_data["group2"][1]:
+                # Comparing Memory data in the second 2 groups
+                if pulp_data["group3"][1] < pulp_data["group4"][1]:
+                    groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
+                    groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
+                else:
+                    groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
+                    groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
+
+    # Comparing CPU data in the first 2 groups
+    elif pulp_data["group1"][0] > pulp_data["group2"][0]:
+        # Comparing CPU data in the second 2 groups
+        if pulp_data["group3"][0] < pulp_data["group4"][0]:
+            groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
+            groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
+        elif pulp_data["group3"][0] > pulp_data["group4"][0]:
+            groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
+            groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
+
+        # No issue with CPU
+        else:
+            # Comparing Memory data in the first 2 groups
+            if pulp_data["group1"][1] < pulp_data["group2"][1]:
+                # Comparing Memory data in the second 2 groups
+                if pulp_data["group3"][1] < pulp_data["group4"][1]:
+                    groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
+                    groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
+                else:
+                    groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
+                    groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
+
+            # Comparing Memory data in the first 2 groups
+            elif pulp_data["group1"][1] > pulp_data["group2"][1]:
+                # Comparing Memory data in the second 2 groups
+                if pulp_data["group3"][1] < pulp_data["group4"][1]:
+                    groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
+                    groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
+                else:
+                    groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
+                    groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
+
+    # No issue with CPU
+    else:
+        # Comparing Memory data
+        if pulp_data["group1"][1] < pulp_data["group2"][1]:
+            if pulp_data["group3"][1] < pulp_data["group4"][1]:
+                groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
+                groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
+            else:
+                groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
+                groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
+        elif pulp_data["group1"][1] > pulp_data["group2"][1]:
+            if pulp_data["group3"][1] < pulp_data["group4"][1]:
+                groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
+                groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
+            else:
+                groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
+                groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
+
+    return groups
+
+
+# Pulp function
+def pulp_search(vms, cpu, mem):
+    vm_number = len(vms)
+    # x[i] = 1 if vm goes in A Group and 0 if B Group
+    x = LpVariable.dicts('x', range(vm_number), cat='Binary')
+    # Max differences
+    cpu_diff = LpVariable('cpu_diff', lowBound=0)
+    mem_diff = LpVariable('mem_diff', lowBound=0)
+    # Model
+    model = LpProblem("Balancing_Servers", LpMinimize)
+    # Sum of CPU usage and Mem consumed for each group
+    cpu_a = lpSum([cpu[i] * x[i] for i in range(vm_number)])
+    cpu_b = lpSum([cpu[i] * (1 - x[i]) for i in range(vm_number)])
+    mem_a = lpSum([mem[i] * x[i] for i in range(vm_number)])
+    mem_b = lpSum([mem[i] * (1 - x[i]) for i in range(vm_number)])
+    # Constrain differences
+    model += cpu_diff >= cpu_a - cpu_b
+    model += cpu_diff >= cpu_b - cpu_a
+    model += mem_diff >= mem_a - mem_b
+    model += mem_diff >= mem_b - mem_a
+    # We try to minimize the differences between groups
+    # (cpu*100.000 to compensate difference between cpu numbers ~1.000 and mem numbers ~1.000.000)
+    model += 10 ** 5 * cpu_diff + mem_diff
+    # Solving
+    model.solve()
+    group_a = [[vms[i], [cpu[i], mem[i]]] for i in range(vm_number) if value(x[i]) == 1]
+    group_b = [[vms[i], [cpu[i], mem[i]]] for i in range(vm_number) if value(x[i]) == 0]
+    # Sum of CPU usage and Mem consumed for each group
+    cpu_a_value = sum([cpu[i] for i in range(vm_number) if value(x[i]) == 1])
+    memoire_a_value = sum([mem[i] for i in range(vm_number) if value(x[i]) == 1])
+    cpu_b_value = sum([cpu[i] for i in range(vm_number) if value(x[i]) == 0])
+    memoire_b_value = sum([mem[i] for i in range(vm_number) if value(x[i]) == 0])
+    if LpStatus[model.status] != "Optimal":
+        print("Status:", LpStatus[model.status])
+    result = [group_a, group_b, [cpu_a_value, memoire_a_value], [cpu_b_value, memoire_b_value]]
+    return result
+
+
+# ----------------------------
+
+
 # Getting VM and their performances then distributing them in 2 balanced lists
 def main_vm(content):
-
     # Getting Hosts
     hosts = get_host(vcenter).view
-    host1 = hosts[0]
-    host2 = hosts[1]
 
     # Getting list of all VMs
     vm_view = getVM(content)
@@ -247,39 +401,8 @@ def main_vm(content):
 
         # Distributing VMs in 2 balanced lists
         vm_lists = distribution_vm_cpu(vm_list_cpu, cpu_percent, mem_percent)
-        vm_list1 = sort_by_abc(vm_lists[0])
-        vm_list2 = sort_by_abc(vm_lists[1])
-        print("------ DISTRIBUTION BY CPU USAGE ------\n\n-", host1.summary.config.name, ":")
-        print_list(vm_list1)
-        print("\n-", host2.summary.config.name, ":")
-        print_list(vm_list2)
-        print("\nSummary :\nCPU / Memory", host1.summary.config.name, ":", vm_lists[2][0]/1000, "GHz /",
-              vm_lists[2][1]/1000000, "Go",
-              "\nCPU / Memory", host2.summary.config.name, ":", vm_lists[3][0]/1000, "GHz /",
-              vm_lists[3][1]/1000000, "Go")
-        valid_test(vm_lists, cpu_percent, mem_percent)
 
-        balanced_vm = [vm_list1, vm_list2]
-
-        liste_vm1, liste_vm2 = [], []
-        liste_cpu1, liste_cpu2 = [], []
-        liste_memoire1, liste_memoire2 = [], []
-        for vm in vm_list1:
-            liste_vm1.append(vm[0])
-            liste_cpu1.append(vm[1][0])
-            liste_memoire1.append(vm[1][1])
-        for vm in vm_list2:
-            liste_vm2.append(vm[0])
-            liste_cpu2.append(vm[1][0])
-            liste_memoire2.append(vm[1][1])
-        print(1)
-        print(liste_vm1)
-        print(liste_cpu1)
-        print(liste_memoire1)
-        print(2)
-        print(liste_vm2)
-        print(liste_cpu2)
-        print(liste_memoire2)
+        balanced_vm = [vm_lists[0], vm_lists[1]]
 
         return balanced_vm
 
@@ -293,25 +416,49 @@ def main_vm(content):
 vcenter = authVSphere()
 print("\n")
 
-# VM program
-vm_balanced = main_vm(vcenter)
-
 # Hosts Properties
 host_props = get_props(vcenter, get_host(vcenter))
 
-print("\n------ WHO'S MOVING ? ------\n")
-print("------", host_props[1]['name'], "--->", host_props[0]['name'], "------\n")
-for vm1 in vm_balanced[0]:
-    for vm2 in host_props[1]['vm_list']:
-        if vm1[0] == vm2:
-            print(vm2)
-print("\n------", host_props[0]['name'], "--->", host_props[1]['name'], "------\n")
-for vm1 in vm_balanced[1]:
-    for vm2 in host_props[0]['vm_list']:
-        if vm1[0] == vm2:
-            print(vm2)
+# VM program
+vm_balanced = main_vm(vcenter)
+
+if len(vm_balanced) == 2:
+    # Calculating and sorting good lists using pulp
+    results = main_sorting(vm_balanced)
+    final1 = sort_by_abc(results[0])
+    final2 = sort_by_abc(results[1])
+    # Calculating sum of CPU and Mem for each group
+    cpu_sum1 = sum(i[1][0] for i in final1)
+    cpu_sum2 = sum(i[1][0] for i in final2)
+    mem_sum1 = sum(i[1][1] for i in final1)
+    mem_sum2 = sum(i[1][1] for i in final2)
+    cpu_mem = {"group1_cpu": cpu_sum1, "group1_mem": mem_sum1, "group2_cpu": cpu_sum2, "group2_mem": mem_sum2}
+    # Printing results
+    print("\n------ FINAL RESULTS ------\n")
+    print("\n------", host_props[0]['name'], "------")
+    print_list(final1)
+    print("\n------", host_props[1]['name'], "------")
+    print_list(final2)
+    print("\nData Summary :")
+    print("CPU Usage / Memory Consumed for", host_props[0]['name'], ":", cpu_sum1/1000, "GHz /", mem_sum1/1000000, "Go")
+    print("CPU Usage / Memory Consumed for", host_props[1]['name'], ":", cpu_sum2/1000, "GHz /", mem_sum2/1000000, "Go")
+    # Verification and Validation
+    valid_test(cpu_mem)
+    # Printing easy to read instructions
+    print("\n------ WHO'S MOVING ? ------\n")
+    print("------", host_props[1]['name'], "--->", host_props[0]['name'], "------\n")
+    for vm1 in final1:
+        for vm2 in host_props[1]['vm_list']:
+            if vm1[0] == vm2:
+                print(vm2)
+    print("\n------", host_props[0]['name'], "--->", host_props[1]['name'], "------\n")
+    for vm1 in final1:
+        for vm2 in host_props[0]['vm_list']:
+            if vm1[0] == vm2:
+                print(vm2)
+else:
+    print("Error")
 
 print("\nEnd")
-
 
 # Disconnect(service_instance)
