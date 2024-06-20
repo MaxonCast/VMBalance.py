@@ -162,7 +162,7 @@ def valid_test(data):
     # CPU test
     cpu_group1 = data["group1_cpu"]
     cpu_group2 = data["group2_cpu"]
-    cpu_percent = (cpu_group1 + cpu_group2) / 20
+    cpu_percent = (cpu_group1 + cpu_group2) / 50
     if -cpu_percent < cpu_group1 - cpu_group2 < cpu_percent:
         cpu = "Good"
     else:
