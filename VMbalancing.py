@@ -101,8 +101,8 @@ def get_perf(content, obj_list):
             output += "name:        " + obj.summary.config.name + "\n"
             for val in result_stats[0].value:
                 value_data.append(val.value[0])
-                counterinfo_k_to_v = list(counter_info.keys())[list(counter_info.values()).index(val.id.counterId)]
-                output += "%s: %s\n" % (counterinfo_k_to_v, str(val.value[0]))
+                counter_info_k_to_v = list(counter_info.keys())[list(counter_info.values()).index(val.id.counterId)]
+                output += "%s: %s\n" % (counter_info_k_to_v, str(val.value[0]))
             vm_data.append(value_data)
         data.append(vm_data)
         # print(output, "\nVM", len(data), "saved !\n------------\n")
@@ -383,10 +383,10 @@ def main(content):
         print("\n------", host_props[1]['name'], "------")
         print_list(final2)
         print("\nData Summary :")
-        print("CPU Usage / Memory Consumed for", host_props[0]['name'], ":", cpu_sum1 / 1000, "GHz /", mem_sum1 / 1000000,
-              "Go")
-        print("CPU Usage / Memory Consumed for", host_props[1]['name'], ":", cpu_sum2 / 1000, "GHz /", mem_sum2 / 1000000,
-              "Go")
+        print("CPU Usage / Memory Consumed for", host_props[0]['name'], ":", cpu_sum1 / 1000, "GHz /",
+              mem_sum1 / 1000000, "Go")
+        print("CPU Usage / Memory Consumed for", host_props[1]['name'], ":", cpu_sum2 / 1000, "GHz /",
+              mem_sum2 / 1000000, "Go")
 
         # Verification and Validation
         valid_test(cpu_mem)
