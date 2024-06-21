@@ -2,7 +2,7 @@ import datetime
 from getpass import getpass
 from pyVim.connect import SmartConnect  # , Disconnect
 from pyVmomi import vim, vmodl
-from pulp import LpMinimize, LpProblem, LpVariable, lpSum, value, LpStatus
+from pulp import LpMinimize, LpProblem, LpVariable, lpSum, value
 
 
 # Connecting to VCenter
@@ -190,93 +190,6 @@ def print_list(plist):
 # ----------------------------
 
 
-# Forming the lists in order to use pulp
-def sorting_pulp_groups(pulp_groups, pulp_data):
-    groups = [[], []]
-    # Comparing CPU data in the first 2 groups
-    if pulp_data["group1"][0] < pulp_data["group2"][0]:
-        # Comparing CPU data in the second 2 groups
-        if pulp_data["group3"][0] < pulp_data["group4"][0]:
-            groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
-            groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
-        elif pulp_data["group3"][0] > pulp_data["group4"][0]:
-            groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
-            groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
-
-        # No issue with CPU
-        else:
-            # Comparing Memory data in the first 2 groups
-            if pulp_data["group1"][1] < pulp_data["group2"][1]:
-                # Comparing Memory data in the second 2 groups
-                if pulp_data["group3"][1] < pulp_data["group4"][1]:
-                    groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
-                    groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
-                else:
-                    groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
-                    groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
-
-            # Comparing Memory data in the first 2 groups
-            elif pulp_data["group1"][1] > pulp_data["group2"][1]:
-                # Comparing Memory data in the second 2 groups
-                if pulp_data["group3"][1] < pulp_data["group4"][1]:
-                    groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
-                    groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
-                else:
-                    groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
-                    groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
-
-    # Comparing CPU data in the first 2 groups
-    elif pulp_data["group1"][0] > pulp_data["group2"][0]:
-        # Comparing CPU data in the second 2 groups
-        if pulp_data["group3"][0] < pulp_data["group4"][0]:
-            groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
-            groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
-        elif pulp_data["group3"][0] > pulp_data["group4"][0]:
-            groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
-            groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
-
-        # No issue with CPU
-        else:
-            # Comparing Memory data in the first 2 groups
-            if pulp_data["group1"][1] < pulp_data["group2"][1]:
-                # Comparing Memory data in the second 2 groups
-                if pulp_data["group3"][1] < pulp_data["group4"][1]:
-                    groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
-                    groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
-                else:
-                    groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
-                    groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
-
-            # Comparing Memory data in the first 2 groups
-            elif pulp_data["group1"][1] > pulp_data["group2"][1]:
-                # Comparing Memory data in the second 2 groups
-                if pulp_data["group3"][1] < pulp_data["group4"][1]:
-                    groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
-                    groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
-                else:
-                    groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
-                    groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
-
-    # No issue with CPU
-    else:
-        # Comparing Memory data
-        if pulp_data["group1"][1] < pulp_data["group2"][1]:
-            if pulp_data["group3"][1] < pulp_data["group4"][1]:
-                groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
-                groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
-            else:
-                groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
-                groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
-        elif pulp_data["group1"][1] > pulp_data["group2"][1]:
-            if pulp_data["group3"][1] < pulp_data["group4"][1]:
-                groups[0] = pulp_groups["group1"] + pulp_groups["group3"]
-                groups[1] = pulp_groups["group2"] + pulp_groups["group4"]
-            else:
-                groups[0] = pulp_groups["group1"] + pulp_groups["group4"]
-                groups[1] = pulp_groups["group2"] + pulp_groups["group3"]
-    return groups
-
-
 # Pulp function
 def pulp_search(vms, cpu, mem):
     vm_number = len(vms)
@@ -288,8 +201,9 @@ def pulp_search(vms, cpu, mem):
     # Model
     model = LpProblem("Balancing_Servers", LpMinimize)
     # Sum of CPU usage and Mem consumed for each group
-    cpu_a = lpSum([cpu[i] * x[i] for i in range(vm_number)])
-    cpu_b = lpSum([cpu[i] * (1 - x[i]) for i in range(vm_number)])
+    # (cpu*100.000 to compensate difference between cpu numbers ~1.000 and mem numbers ~1.000.000)
+    cpu_a = 10 ** 5 * lpSum([cpu[i] * x[i] for i in range(vm_number)])
+    cpu_b = 10 ** 5 * lpSum([cpu[i] * (1 - x[i]) for i in range(vm_number)])
     mem_a = lpSum([mem[i] * x[i] for i in range(vm_number)])
     mem_b = lpSum([mem[i] * (1 - x[i]) for i in range(vm_number)])
     # Constrain differences
@@ -298,8 +212,7 @@ def pulp_search(vms, cpu, mem):
     model += mem_diff >= mem_a - mem_b
     model += mem_diff >= mem_b - mem_a
     # We try to minimize the differences between groups
-    # (cpu*100.000 to compensate difference between cpu numbers ~1.000 and mem numbers ~1.000.000)
-    model += 10 ** 5 * cpu_diff + mem_diff
+    model += cpu_diff + mem_diff
     # Solving
     model.solve()
     group_a = [[vms[i], [cpu[i], mem[i]]] for i in range(vm_number) if value(x[i]) == 1]
@@ -309,8 +222,6 @@ def pulp_search(vms, cpu, mem):
     memoire_a_value = sum([mem[i] for i in range(vm_number) if value(x[i]) == 1])
     cpu_b_value = sum([cpu[i] for i in range(vm_number) if value(x[i]) == 0])
     memoire_b_value = sum([mem[i] for i in range(vm_number) if value(x[i]) == 0])
-    if LpStatus[model.status] != "Optimal":
-        print("Status:", LpStatus[model.status])
     result = [group_a, group_b, [cpu_a_value, memoire_a_value], [cpu_b_value, memoire_b_value]]
     return result
 
@@ -342,7 +253,7 @@ def main(content):
         cpu1, cpu2 = [], []
         mem1, mem2 = [], []
         for index in range(len(vm_list_cpu)):
-            if index % 2 == 0:
+            if index < len(vm_list_cpu)/2:
                 vms1.append(vm_list_cpu[index][0])
                 cpu1.append(vm_list_cpu[index][1][0])
                 mem1.append(vm_list_cpu[index][1][1])
@@ -361,19 +272,20 @@ def main(content):
         pulp2 = pulp_search(group2[0], group2[1], group2[2])
         print("RESEARCH FINISHED\n")
         # Organizing results
-        pulp_groups = {"group1": pulp1[0], "group2": pulp1[1], "group3": pulp2[0], "group4": pulp2[1]}
-        pulp_data = {"group1": pulp1[2], "group2": pulp1[3], "group3": pulp2[2], "group4": pulp2[3]}
-
+        pulp_groups = [pulp1[0], pulp1[1], pulp2[0], pulp2[1]]
+        pulp_cpu = [pulp1[2][0], pulp1[3][0], pulp2[2][0], pulp2[3][0]]
+        pulp_mem = [pulp1[2][1], pulp1[3][1], pulp2[2][1], pulp2[3][1]]
         # Calculating and sorting good lists using pulp
-        results = sorting_pulp_groups(pulp_groups, pulp_data)
-        final1 = sort_by_abc(results[0])
-        final2 = sort_by_abc(results[1])
+        print("\n------ RESEARCH PULP FINAL ------\n")
+        final_pulp = pulp_search(pulp_groups, pulp_cpu, pulp_mem)
+        print("RESEARCH FINISHED\n")
+        final1 = sort_by_abc(final_pulp[0][0][0] + final_pulp[0][1][0])
+        final2 = sort_by_abc(final_pulp[1][0][0] + final_pulp[1][1][0])
 
-        # Calculating sum of CPU and Mem for each group
-        cpu_sum1 = sum(i[1][0] for i in final1)
-        cpu_sum2 = sum(i[1][0] for i in final2)
-        mem_sum1 = sum(i[1][1] for i in final1)
-        mem_sum2 = sum(i[1][1] for i in final2)
+        cpu_sum1 = final_pulp[2][0]
+        cpu_sum2 = final_pulp[3][0]
+        mem_sum1 = final_pulp[2][1]
+        mem_sum2 = final_pulp[3][1]
         cpu_mem = {"group1_cpu": cpu_sum1, "group1_mem": mem_sum1, "group2_cpu": cpu_sum2, "group2_mem": mem_sum2}
 
         # Printing results
