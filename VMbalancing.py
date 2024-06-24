@@ -181,6 +181,20 @@ def valid_test(data):
         print("I do not recommend moving VMs now !")
 
 
+# Testing a VM name that can't be moved ("test = True" if VM is in the good group)
+def test_protection(name, list1, list2, host_list):
+    test = False
+    if name in host_list[0]['vm_list']:
+        for vm in list1:
+            if name == vm[0]:
+                test = True
+    elif name in host_list[1]['vm_list']:
+        for vm in list2:
+            if name == vm[0]:
+                test = True
+    return test
+
+
 # Print list line by line
 def print_list(plist):
     for p in plist:
@@ -215,6 +229,7 @@ def pulp_search(vms, cpu, mem):
     model += cpu_diff + mem_diff
     # Solving
     model.solve()
+    print("RESEARCH FINISHED\n")
     group_a = [[vms[i], [cpu[i], mem[i]]] for i in range(vm_number) if value(x[i]) == 1]
     group_b = [[vms[i], [cpu[i], mem[i]]] for i in range(vm_number) if value(x[i]) == 0]
     # Sum of CPU usage and Mem consumed for each group
@@ -265,10 +280,8 @@ def main(content):
         # Researching best groups using Pulp
         print("\n------ RESEARCH PULP 1 ------\n")
         pulp1 = pulp_search(group1[0], group1[1], group1[2])
-        print("RESEARCH FINISHED\n")
         print("\n------ RESEARCH PULP 2 ------\n")
         pulp2 = pulp_search(group2[0], group2[1], group2[2])
-        print("RESEARCH FINISHED\n")
         # Organizing results
         pulp_groups = [pulp1[0], pulp1[1], pulp2[0], pulp2[1]]
         pulp_cpu = [pulp1[2][0], pulp1[3][0], pulp2[2][0], pulp2[3][0]]
@@ -276,10 +289,23 @@ def main(content):
         # Calculating and sorting good lists using pulp
         print("\n------ RESEARCH PULP FINAL ------\n")
         final_pulp = pulp_search(pulp_groups, pulp_cpu, pulp_mem)
-        print("RESEARCH FINISHED\n")
+        temp1 = final_pulp[0][0][0] + final_pulp[0][1][0]
+        temp2 = final_pulp[1][0][0] + final_pulp[1][1][0]
+
+        # Way to protect 1 VM from being moved
+        if not test_protection("VEEAM", temp1, temp2, host_props):
+            # VM groups
+            temp = final_pulp[0]
+            final_pulp[0] = final_pulp[1]
+            final_pulp[1] = temp
+            # Totals
+            temp = final_pulp[2]
+            final_pulp[2] = final_pulp[3]
+            final_pulp[3] = temp
+
+        # Grouping final results together
         final1 = sort_by_abc(final_pulp[0][0][0] + final_pulp[0][1][0])
         final2 = sort_by_abc(final_pulp[1][0][0] + final_pulp[1][1][0])
-
         cpu_sum1 = final_pulp[2][0]
         cpu_sum2 = final_pulp[3][0]
         mem_sum1 = final_pulp[2][1]
@@ -303,14 +329,14 @@ def main(content):
 
         # Printing easy to read instructions
         print("\n------ WHO'S MOVING ? ------\n")
-        print("------", host_props[1]['name'], "--->", host_props[0]['name'], "------\n")
-        for vm1 in final1:
-            for vm2 in host_props[1]['vm_list']:
+        print("------", host_props[0]['name'], "--->", host_props[1]['name'], "------\n")
+        for vm1 in final2:
+            for vm2 in host_props[0]['vm_list']:
                 if vm1[0] == vm2:
                     print(vm2)
-        print("\n------", host_props[0]['name'], "--->", host_props[1]['name'], "------\n")
+        print("\n------", host_props[1]['name'], "--->", host_props[0]['name'], "------\n")
         for vm1 in final1:
-            for vm2 in host_props[0]['vm_list']:
+            for vm2 in host_props[1]['vm_list']:
                 if vm1[0] == vm2:
                     print(vm2)
 
