@@ -229,10 +229,8 @@ def pulp_search(vms, cpu, mem):
 # ----------------------------
 
 
-# Getting VM and their performances then distributing them in 2 balanced lists
 def main(content):
-    # Getting Host
-    # Host Properties
+    # Get Host Properties
     host_props = get_props(content, get_host(content))
 
     # Getting list of all VMs
