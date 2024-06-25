@@ -292,8 +292,11 @@ def main(content):
         temp1 = final_pulp[0][0][0] + final_pulp[0][1][0]
         temp2 = final_pulp[1][0][0] + final_pulp[1][1][0]
 
+        vm_exclude = input("Which VM do you want to protect from moving ? "
+                           "(only one VM can be chosen, press ENTER to skip) : ")
+
         # Way to protect 1 VM from being moved
-        if not test_protection("VEEAM", temp1, temp2, host_props):
+        if vm_exclude != "" and vm_exclude != " " and not test_protection(vm_exclude, temp1, temp2, host_props):
             # VM groups
             temp = final_pulp[0]
             final_pulp[0] = final_pulp[1]
