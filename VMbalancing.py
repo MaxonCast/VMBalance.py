@@ -184,12 +184,15 @@ def valid_test(data):
 # Testing a VM name that can't be moved ("test = True" if VM is in the good group)
 def test_protection(name, list1, list2, host_list):
     test = False
+    name = name.upper()
     if name in host_list[0]['vm_list']:
         for vm in list1:
+            vm[0] = vm[0].upper()
             if name == vm[0]:
                 test = True
     elif name in host_list[1]['vm_list']:
         for vm in list2:
+            vm[0] = vm[0].upper()
             if name == vm[0]:
                 test = True
     return test
